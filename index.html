@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ising model on annealed scale-free networks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8ECF1; --panel:#F7F9FB; --ink:#15202B; --muted:#5A6573; --rule:#C9D1DB; --grid:#DEE4EB;
+  --on:#FFFFFF; --up:#CF8710; --down:#2A55A0; --wall:#C22E4A; --focus:#2A55A0;
+  --s0:#A9C0E4; --s1:#7C9DD3; --s2:#4F77BD; --s3:#2A55A0; --s4:#14336D;
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  --sans:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161D; --panel:#18202A; --ink:#E4E9F0; --muted:#98A4B4; --rule:#2E3947; --grid:#222B36;
+    --on:#0E141C; --up:#F0AE3C; --down:#6F9CE8; --wall:#F06880; --focus:#8DB3F4;
+    --s0:#3A5788; --s1:#5579B6; --s2:#7C9DDA; --s3:#A7C0EE; --s4:#D6E3FA;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161D; --panel:#18202A; --ink:#E4E9F0; --muted:#98A4B4; --rule:#2E3947; --grid:#222B36;
+  --on:#0E141C; --up:#F0AE3C; --down:#6F9CE8; --wall:#F06880; --focus:#8DB3F4;
+  --s0:#3A5788; --s1:#5579B6; --s2:#7C9DDA; --s3:#A7C0EE; --s4:#D6E3FA;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+a{color:var(--down)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+header.mast{padding:36px 0 18px}
+.cite{font-size:13px;color:var(--muted);margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:500;font-size:clamp(28px,4vw,44px);line-height:1.08;letter-spacing:-0.01em;margin:0 0 14px;max-width:24ch}
+.lede{font-family:var(--serif);font-size:17px;line-height:1.62;max-width:68ch;margin:0;color:var(--ink)}
+.lede var,.prose var{font-style:italic}
+
+/* shared control bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--rule);margin-top:18px}
+.bar .wrap{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center;padding-top:12px;padding-bottom:12px}
+.ctl{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ctl label,.ctl .lab{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:10px}
+.ctl .lab{display:block}
+.ctl output{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--down);margin:2px 0}
+.ctl.g{flex:1 1 260px}
+.ctl.kb{flex:0 1 150px}
+.regime{font-size:13px;color:var(--ink);margin-top:1px}
+.seg{display:inline-flex;align-self:flex-start;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink);padding:6px 10px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed=true]{background:var(--down);color:var(--on)}
+.seg canvas{width:34px;height:18px;display:block}
+button.act{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--down);background:var(--down);color:var(--on);border-radius:8px;padding:7px 14px;cursor:pointer}
+button.act.ghost{background:transparent;color:var(--down)}
+button.act:disabled{opacity:.5;cursor:default}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;margin:22px 0 10px}
+.netwrap{position:relative;background:var(--panel);border:1px solid var(--rule);border-radius:14px;min-height:520px;overflow:hidden}
+#net{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.legend{position:absolute;left:14px;bottom:12px;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);pointer-events:none}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.legend b{display:inline-block;width:16px;height:2px;margin-right:5px;vertical-align:3px;background:var(--wall)}
+#tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 9px;border-radius:6px;line-height:1.4;display:none;white-space:nowrap;font-variant-numeric:tabular-nums}
+.netinfo{position:absolute;right:14px;top:12px;font-size:12.5px;color:var(--muted);text-align:right;pointer-events:none}
+.side{display:flex;flex-direction:column;gap:16px}
+.deltabox{background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 14px}
+.deltabox .big{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.deltabox .big span{font-family:var(--serif);font-size:15px;color:var(--muted)}
+.deltabox .big output{font-family:var(--serif);font-size:34px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1}
+.row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.readout{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px;margin:12px 0 0;padding:12px 0 0;border-top:1px solid var(--rule)}
+.readout dt{color:var(--muted)} .readout dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.readout .m dd{font-size:20px}
+.opts{font-size:13.5px;display:flex;flex-direction:column;gap:6px}
+.opts label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.opts input{accent-color:var(--down)}
+.small{font-size:13px;color:var(--muted);margin:0}
+
+/* sections */
+section.part{margin:46px 0 0;padding-top:26px;border-top:1px solid var(--rule)}
+h2{font-family:var(--serif);font-weight:500;font-size:28px;line-height:1.15;margin:0 0 8px}
+h3{font-family:var(--sans);font-size:15px;font-weight:600;margin:0 0 2px}
+.prose{font-family:var(--serif);font-size:16px;line-height:1.65;max-width:70ch;margin:0 0 18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:14px 14px 10px;min-width:0}
+.card .cap{font-size:13px;color:var(--muted);margin:2px 0 8px;min-height:1.5em}
+canvas.plot{width:100%;height:250px;display:block}
+canvas.plot.tall{height:300px}
+.verdict{font-family:var(--serif);font-size:16px;line-height:1.55;margin:4px 0 10px}
+.verdict strong{font-family:var(--sans);font-weight:600}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13.5px;margin:0 0 10px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-variant-numeric:tabular-nums;font-weight:600}
+.simctl{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;margin:0 0 18px;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips label{font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:3px 10px;cursor:pointer;display:flex;gap:5px;align-items:center;font-variant-numeric:tabular-nums}
+.chips input{accent-color:var(--down);margin:0}
+.num{font:inherit;font-size:14px;width:76px;padding:5px 7px;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+.prog{flex:1 1 200px;min-width:160px}
+.prog .track{height:6px;background:var(--grid);border-radius:3px;overflow:hidden}
+.prog .fill{height:100%;width:0;background:var(--down);transition:width .15s}
+.prog .txt{font-size:13px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.inline select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:3px 6px}
+.sliders3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:6px}
+footer ol{margin:10px 0 0;padding-left:20px}footer li{margin:4px 0}footer .credit{margin-top:14px}
+footer p{margin:0 0 10px}
+footer{margin:56px 0 40px;padding-top:18px;border-top:1px solid var(--rule);font-size:13px;color:var(--muted);max-width:80ch}
+@media (max-width:980px){.hero{grid-template-columns:1fr}.netwrap{min-height:420px}.grid3{grid-template-columns:1fr 1fr}}
+@media (max-width:680px){.grid3,.grid2{grid-template-columns:1fr}.netwrap{min-height:360px}.bar{position:static}h2{font-size:24px}}
+@media (prefers-reduced-motion:reduce){.prog .fill{transition:none}}
+.presets{display:flex;gap:6px;flex-wrap:wrap}
+.presets button{font:inherit;font-size:12.5px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);border-radius:999px;padding:3px 10px;cursor:pointer}
+.presets button:hover{border-color:var(--down)}
+.ctl.om{flex:1 1 220px}.ctl.dd{flex:0 1 150px}
+.span2{grid-column:span 2}
+@media (max-width:980px){.span2{grid-column:auto}}
+.eq{font-family:var(--serif);font-size:15px;margin:0 0 8px;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="mast">
+  <p class="cite">Interactive companion to S. H. Lee, M. Ha, H. Jeong, J. D. Noh &amp; H. Park, <a href="https://doi.org/10.1103/PhysRevE.80.051127">Phys. Rev. E 80, 051127 (2009)</a></p>
+  <h1>Critical behaviour of the Ising model on annealed scale-free networks</h1>
+  <p class="lede">Here an annealed network is a globally coupled network: every pair of nodes interacts, with a weight <var>K̃k<sub>i</sub>k<sub>j</sub></var>/<var>Nz</var><sub>1</sub> proportional to the product of their nominal degrees. The <var>k<sub>i</sub></var> are weights drawn from a scale-free distribution, not counts of actual links. The energy depends only on <var>M̃</var> = Σ<var>k<sub>i</sub>s<sub>i</sub></var>, which makes finite-size scaling solvable. With a forced cutoff <var>k<sub>c</sub></var> ∼ <var>N</var><sup>1/ω</sup>, the case 3 &lt; λ &lt; 5 needs two scaling variables instead of one, and for 2 &lt; λ &lt; 3 the transition moves to zero coupling.</p>
+</header>
+</div>
+
+<div class="bar" role="region" aria-label="Network parameters">
+  <div class="wrap">
+    <div class="ctl g">
+      <label for="lam"><span>Degree exponent λ, <var>P</var>(<var>k</var>) ∼ <var>k</var><sup>−λ</sup></span><output id="lamOut">4.0</output></label>
+      <input id="lam" type="range" min="2.2" max="7" step="0.1" value="4">
+      <div class="regime" id="regime"></div>
+    </div>
+    <div class="ctl om">
+      <label for="om"><span>Cutoff exponent ω, <var>k<sub>c</sub></var> = <var>d</var> <var>N</var><sup>1/ω</sup></span><output id="omOut">4.0</output></label>
+      <input id="om" type="range" min="3" max="10" step="0.1" value="4">
+      <div class="regime" id="omNote"></div>
+    </div>
+    <div class="ctl dd">
+      <label for="dd"><span>Prefactor <var>d</var></span><output id="ddOut">3.00</output></label>
+      <input id="dd" type="range" min="0.5" max="4" step="0.01" value="3">
+      <div class="regime"><var>k</var><sub>0</sub> = 3</div>
+    </div>
+    <div class="ctl">
+      <span class="lab">Presets</span>
+      <div class="presets">
+        <button type="button" data-p="6,6,3">Fig. 4: λ = 6, ω = 6</button>
+        <button type="button" data-p="4,4,1">Fig. 5: λ = 4, ω = 4</button>
+        <button type="button" data-p="4,3,2.57">Fig. 5(b): ω = ω<sub>nat</sub></button>
+        <button type="button" data-p="4,3,1">Fig. 6: λ = 4, ω = 3, d = 1</button>
+        <button type="button" data-p="2.5,1.5,1">λ = 2.5, natural cutoff</button>
+        <button type="button" data-p="2.5,3,3">λ = 2.5, ω = 3</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+<section class="hero" aria-label="Live Monte Carlo on an annealed network">
+  <div class="netwrap">
+    <canvas id="net" aria-label="Globally coupled network: every pair linked, line opacity proportional to the product of nominal degrees, node colour is the spin"></canvas>
+    <div class="netinfo" id="netInfo"></div>
+    <div class="legend"><span><i style="background:var(--up)"></i>spin up</span><span><i style="background:var(--down)"></i>spin down</span><span>node area ∝ <var>k<sub>i</sub></var>; line opacity ∝ <span id="legS"><var>k<sub>i</sub>k<sub>j</sub></var></span></span><span id="legF"><b></b>strong coupling between opposite spins</span></div>
+  </div>
+  <aside class="side">
+    <div class="deltabox">
+      <div class="big"><span>Reduced coupling ε = (<var>K̃</var> − <var>K̃<sub>c</sub></var>)/<var>K̃<sub>c</sub></var></span><output id="eOut">0</output></div>
+      <input id="eSl" type="range" min="-0.5" max="2" step="0.005" value="0.1" aria-label="Reduced coupling epsilon">
+      <div class="row">
+        <button class="act" id="play">Pause</button>
+        <button class="act ghost" id="reheat">Randomize spins</button>
+      </div>
+      <dl class="readout">
+        <div class="m" style="display:contents"><dt>Order parameter <var>m̃</var></dt><dd id="rM">–</dd></div>
+        <dt>Monte Carlo ⟨|<var>m̃</var>|⟩</dt><dd id="rAvg">–</dd>
+        <dt>Theory ⟨|<var>m̃</var>|⟩, Eq. (16)</dt><dd id="rTh">–</dd>
+        <dt>Coupling <var>K̃</var></dt><dd id="rK">–</dd>
+        <dt><var>K̃<sub>c</sub></var>(<var>N</var>), <var>K̃<sub>c</sub></var><sup>∞</sup></dt><dd id="rKc">–</dd>
+        <dt>Bulk reduced coupling ε<sub>b</sub></dt><dd id="rEb">–</dd>
+        <dt>Sweeps</dt><dd id="rSw">–</dd>
+      </dl>
+      <p class="small" style="margin-top:8px"><var>m̃</var> = Σ<var>k<sub>i</sub>s<sub>i</sub></var>/<var>Nz</var><sub>1</sub> (Eq. 10). <var>K̃<sub>c</sub></var>(<var>N</var>) = <var>z</var><sub>1</sub>/<var>z</var><sub>2</sub> for this sequence; <var>K̃<sub>c</sub></var><sup>∞</sup> is its <var>N</var> → ∞ limit.</p>
+    </div>
+    <div class="deltabox">
+      <h3>Distribution of <var>m̃</var></h3>
+      <p class="small">Monte Carlo histogram (bars) against the saddle-point weight e<sup>−<var>Nf</var>(<var>m̃</var>)</sup> (line).</p>
+      <canvas class="plot" id="hist" style="height:150px"></canvas>
+      <canvas class="plot" id="trace" style="height:110px;margin-top:6px"></canvas>
+    </div>
+    <div class="deltabox opts">
+      <label for="nN" class="ctl" style="display:block"><span style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>Nodes shown <var>N</var></span><output id="nOut" style="color:var(--ink);font-weight:600">400</output></span>
+        <input id="nN" type="range" min="100" max="1200" step="50" value="400"></label>
+      <label for="spd" class="ctl" style="display:block"><span style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>Monte Carlo sweeps per frame</span><output id="spdOut" style="color:var(--ink);font-weight:600">2</output></span>
+        <input id="spd" type="range" min="1" max="20" step="1" value="2"></label>
+      <label><input type="checkbox" id="sqrtS"><span>Square-root opacity scale, to see weaker couplings</span></label>
+      <label><input type="checkbox" id="frus" checked><span>Tint the strongest couplings that join opposite spins</span></label>
+    </div>
+  </aside>
+</section>
+
+<section class="part" id="theory">
+  <h2>From the weighted Hamiltonian to a free energy in <var>m̃</var></h2>
+  <p class="prose">The model is <var>H<sub>f</sub></var> = −<var>K̃</var>Σ<sub><var>i</var>&lt;<var>j</var></sub>(<var>k<sub>i</sub>k<sub>j</sub></var>/<var>Nz</var><sub>1</sub>)<var>s<sub>i</sub>s<sub>j</sub></var> = −(<var>K̃</var>/2<var>Nz</var><sub>1</sub>)(Σ<var>k<sub>i</sub>s<sub>i</sub></var>)² + const (Eqs. 8–9). The paper motivates it as the average of the Ising model over random graphs with link probability <var>p<sub>ij</sub></var> = <var>k<sub>i</sub>k<sub>j</sub></var>/<var>Nz</var><sub>1</sub>, which needs <var>p<sub>ij</sub></var> &lt; 1 and so restricts it to λ &gt; 3 (its note 14). Taken as a weighted, globally coupled network, the model needs no such condition, and everything below also covers 2 &lt; λ ≤ 3. A saddle point in the auxiliary field <var>u</var> then gives the free-energy density <var>f</var>(<var>m̃</var>) = −<var>z</var><sub>1</sub><var>K̃m̃</var>²/2 + <var>z</var><sub>1</sub><var>u</var><sub>0</sub><var>m̃</var> − ⟨ln 2cosh(<var>u</var><sub>0</sub><var>k</var>)⟩ with <var>m̃</var> = ⟨<var>k</var> tanh(<var>u</var><sub>0</sub><var>k</var>)⟩/<var>z</var><sub>1</sub> (Eqs. 13–15). Every curve below integrates e<sup>−<var>Nf</var></sup> numerically for the actual finite degree sequence, so it is the paper’s theory at finite <var>N</var>, not just its asymptotes.</p>
+  <div class="grid3">
+    <div class="card">
+      <h3>Degree sequence</h3>
+      <p class="cap">Deterministic rule of Eq. (54) at the <var>N</var> chosen below; the dashed line is <var>k</var><sup>−λ</sup>.</p>
+      <canvas class="plot" id="pkPlot"></canvas>
+      <div class="ctl" style="margin-top:8px"><label for="thN"><span>System size <var>N</var></span><output id="thNOut"></output></label><input id="thN" type="range" min="3" max="8" step="0.1" value="5"></div>
+      <dl class="kv" id="seqKv" style="margin-top:8px"></dl>
+    </div>
+    <div class="card">
+      <h3>Free-energy density</h3>
+      <p class="cap" id="fCap"></p>
+      <canvas class="plot" id="fPlot"></canvas>
+      <div class="ctl" style="margin-top:8px"><label for="thE"><span>ε for this panel</span><output id="thEOut"></output></label><input id="thE" type="range" min="-0.2" max="0.3" step="0.005" value="0.1"></div>
+    </div>
+    <div class="card">
+      <h3>What the theory predicts here</h3>
+      <p class="verdict" id="verdict"></p>
+      <dl class="kv" id="expKv"></dl>
+    </div>
+    <div class="card">
+      <h3>Order parameter against coupling</h3>
+      <p class="cap" id="mdCap">Paper Figs. 1–3, computed for <var>N</var> = 10³ to 10⁷.</p>
+      <canvas class="plot tall" id="mePlot"></canvas>
+      <div class="opts" style="margin-top:6px;flex-direction:row;gap:16px;flex-wrap:wrap">
+        <label><input type="radio" name="axis" value="e" checked><span>ε, relative to <var>K̃<sub>c</sub></var>(<var>N</var>)</span></label>
+        <label><input type="radio" name="axis" value="b"><span>ε<sub>b</sub>, relative to <var>K̃<sub>c</sub></var><sup>∞</sup></span></label>
+        <label><input type="checkbox" id="meLog"><span>Log–log, ε &gt; 0</span></label>
+      </div>
+    </div>
+    <div class="card span2">
+      <h3>Critical finite-size scaling</h3>
+      <p class="cap" id="fssCap">Paper Figs. 4(a) and 5(a): ⟨<var>m̃</var>⟩ at the pseudo-critical point ε = 0 and at the bulk critical point ε<sub>b</sub> = 0. Dashed lines have the predicted slopes.</p>
+      <canvas class="plot tall" id="fssPlot"></canvas>
+    </div>
+  </div>
+</section>
+
+<section class="part" id="mc">
+  <h2>Monte Carlo test</h2>
+  <p class="prose">As in the paper’s Sec. IV, Metropolis dynamics runs on the globally coupled model of Eq. (8) with deterministic degree sequences. Each size is swept from the ordered side down in ε, reusing the equilibrated state, and also run at the bulk critical point (for λ ≤ 3, where that point is zero, at a fixed coupling instead). Lines are the saddle-point theory for the same sequence. The paper went to <var>N</var> = 32 768 × 10³ with 100 samples; this runs in your browser, so the sizes are smaller and the data noisier.</p>
+  <div class="simctl">
+    <div class="ctl"><span class="lab">System sizes <var>N</var></span><div class="chips" id="sizes"></div></div>
+    <div class="ctl"><label for="eqS"><span>Equilibration sweeps</span></label><input class="num" id="eqS" type="number" min="20" max="20000" value="150"></div>
+    <div class="ctl"><label for="msS"><span>Measurement sweeps</span></label><input class="num" id="msS" type="number" min="50" max="100000" value="600"></div>
+    <div class="ctl"><label for="eMax"><span>Largest |ε|</span></label><input class="num" id="eMax" type="number" min="0.01" max="1" step="0.01" value="0.3"></div>
+    <div class="ctl"><label for="nE"><span>Points per side</span></label><input class="num" id="nE" type="number" min="2" max="20" value="7"></div>
+    <button class="act" id="run">Run Monte Carlo</button>
+    <div class="prog"><div class="track"><div class="fill" id="pFill"></div></div><div class="txt" id="pTxt">Not run yet</div></div>
+  </div>
+  <div class="grid3">
+    <div class="card">
+      <h3>⟨<var>m̃</var>⟩ against ε</h3>
+      <p class="cap">Markers: Monte Carlo. Lines: theory for the same <var>N</var>.</p>
+      <canvas class="plot tall" id="mcM"></canvas>
+    </div>
+    <div class="card">
+      <h3 id="mcFt">⟨<var>m̃</var>⟩ at ε = 0 and ε<sub>b</sub> = 0</h3>
+      <p class="cap">Markers: Monte Carlo. Lines: theory, extended to larger <var>N</var>.</p>
+      <canvas class="plot tall" id="mcF"></canvas>
+    </div>
+    <div class="card">
+      <h3>Scaling collapse</h3>
+      <p class="cap" id="colCap"></p>
+      <canvas class="plot tall" id="mcC"></canvas>
+      <div class="inline" style="margin-top:6px"><label>Scaling form <select id="colSel"></select></label></div>
+    </div>
+  </div>
+</section>
+
+<section class="part" id="sad">
+  <h2>Sample-to-sample fluctuations</h2>
+  <p class="prose">Drawing the <var>N</var> degrees independently from <var>P</var>(<var>k</var>) instead of deterministically makes the degree moments fluctuate between samples (Sec. V). The critical amplitude depends on <var>b</var> = <var>z</var><sub>1</sub><sup>4</sup><var>z</var><sub>4</sub>/<var>z</var><sub>2</sub><sup>4</sup>, and <var>z</var><sub>4</sub> is not self-averaging for λ &lt; 5 at the natural cutoff; for λ &lt; 3 neither is <var>z</var><sub>2</sub>, so even <var>K̃<sub>c</sub></var>(<var>N</var>) = <var>z</var><sub>1</sub>/<var>z</var><sub>2</sub> fluctuates. Here each sample’s ⟨<var>m̃</var>⟩<sub><var>c</var></sub> is the saddle-point thermal average at its own <var>K̃<sub>c</sub></var>, so the spread shown comes purely from the sampled degrees.</p>
+  <div class="simctl">
+    <div class="ctl"><span class="lab">System sizes <var>N</var></span><div class="chips" id="sSizes"></div></div>
+    <div class="ctl"><label for="nSm"><span>Samples per size</span></label><input class="num" id="nSm" type="number" min="20" max="3000" value="300"></div>
+    <button class="act" id="runS">Draw samples</button>
+    <div class="prog"><div class="track"><div class="fill" id="sFill"></div></div><div class="txt" id="sTxt">Not run yet</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Histogram of ⟨<var>m̃</var>⟩<sub><var>c</var></sub>/[⟨<var>m̃</var>⟩<sub><var>c</var></sub>]</h3>
+      <p class="cap">Paper Fig. 6. A self-averaging quantity sharpens toward a spike at 1 as <var>N</var> grows; a non-self-averaging one keeps its width.</p>
+      <canvas class="plot tall" id="sHist"></canvas>
+    </div>
+    <div class="card">
+      <h3>Relative spread against <var>N</var></h3>
+      <p class="cap" id="sCap"></p>
+      <canvas class="plot tall" id="sSpread"></canvas>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>The annealed network is the globally coupled network of Eq. (8): all pairs interact with weight <var>K̃k<sub>i</sub>k<sub>j</sub></var>/<var>Nz</var><sub>1</sub>, where the <var>k<sub>i</sub></var> are nominal degrees, at zero field. In the network picture every pair is joined by a line whose opacity is proportional to <var>k<sub>i</sub>k<sub>j</sub></var>, so hub–hub couplings dominate; the peak opacity is inversely proportional to the effective number of lines Σ<sub><var>i</var>&lt;<var>j</var></sub><var>k<sub>i</sub>k<sub>j</sub></var>/<var>k</var><sub>max</sub>², so the total shading is comparable for any λ and <var>N</var>, and lines too faint to register on screen are skipped. An optional square-root scale makes weaker couplings visible. The red tint marks, among the 496 pairs of the 32 largest-weight nodes, those whose spins disagree. The spins follow Metropolis dynamics with Δ<var>H</var> = (2<var>K̃k<sub>i</sub></var>/<var>Nz</var><sub>1</sub>)(<var>s<sub>i</sub>M̃</var> − <var>k<sub>i</sub></var>), which costs O(1) per update. Degree sequences use <var>k</var><sub>0</sub> = 3, <var>k<sub>c</sub></var> = int(<var>dN</var><sup>1/ω</sup>) and the deterministic rule of Eq. (54). The bulk critical coupling is <var>K̃<sub>c</sub></var><sup>∞</sup> = ζ(λ − 1, <var>k</var><sub>0</sub>)/ζ(λ − 2, <var>k</var><sub>0</sub>) with the Hurwitz zeta function. Theory curves integrate Eq. (16) over the saddle-point free energy of Eq. (15) for the actual sequence; the scaling function ψ(<var>x</var>) is Eq. (A3). The bulk curve solves <var>m̃</var> = ⟨<var>k</var> tanh(<var>K̃m̃k</var>)⟩/<var>z</var><sub>1</sub> with <var>k<sub>c</sub></var> = ∞.</p>
+  <p>For 2 &lt; λ ≤ 3, which the paper does not treat, the results shown follow from the same saddle point: <var>K̃<sub>c</sub></var>(<var>N</var>) = <var>z</var><sub>1</sub>/<var>z</var><sub>2</sub> ∝ <var>N</var><sup>−(3−λ)/ω</sup>, ⟨<var>m̃</var>⟩<sub>∞</sub> ∝ <var>K̃</var><sup>(λ−2)/(3−λ)</sup>, a critical window ε ∼ <var>N</var><sup>−[1−(λ−1)/ω]/2</sup>, and ⟨<var>m̃</var>⟩ ∝ <var>N</var><sup>−[1+(3λ−7)/ω]/4</sup> at ε = 0. These exponents come from inserting the finite-<var>N</var> moments <var>z</var><sub>2</sub> ∼ <var>k<sub>c</sub></var><sup>3−λ</sup> and <var>z</var><sub>4</sub> ∼ <var>k<sub>c</sub></var><sup>5−λ</sup> into the Landau coefficients of Eq. (20). They were checked against the numerical integral up to <var>N</var> = 10⁸, where the slopes agree to within about 0.01 at λ = 2.5; convergence is slower for forced cutoffs.</p>
+  <ol>
+    <li>S. H. Lee, M. Ha, H. Jeong, J. D. Noh, and H. Park, “Critical behavior of the Ising model in annealed scale-free networks,” <a href="https://doi.org/10.1103/PhysRevE.80.051127">Phys. Rev. E 80, 051127 (2009)</a>.</li>
+  </ol>
+  <p class="credit">Created by Claude Opus 5.5 (Anthropic).</p>
+</footer>
+</main>
+<script>
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function hashSeed(){let h=2166136261>>>0;for(const v of arguments){h^=(v|0);h=Math.imul(h,16777619);h^=h>>>13;}return h>>>0;}
+
+// Hurwitz zeta ζ(s,q), s>1, via direct sum + Euler–Maclaurin tail
+function hurwitz(s,q){const J=40;let S=0;for(let j=0;j<J;j++)S+=Math.pow(q+j,-s);const x=q+J;
+  S+=Math.pow(x,1-s)/(s-1)+0.5*Math.pow(x,-s)+s*Math.pow(x,-s-1)/12-s*(s+1)*(s+2)*Math.pow(x,-s-3)/720+s*(s+1)*(s+2)*(s+3)*(s+4)*Math.pow(x,-s-5)/30240;return S;}
+function bulk(lam,k0){const zl=hurwitz(lam,k0),z=n=>lam-n>1?hurwitz(lam-n,k0)/zl:Infinity;
+  return {z1:z(1),z2:z(2),z4:z(4),Kc:lam>3?hurwitz(lam-1,k0)/hurwitz(lam-2,k0):0,c:1/zl,lam,k0};}
+// Bulk (N = ∞, k_c = ∞) order parameter: largest root of m = <k tanh(K m k)>/z1 with P(k) = c k^-λ, k ≥ k0
+function bulkRHS(Bk,K,m){const {lam,k0,c,z1}=Bk,x=K*m,KB=2000;let S=0;
+  for(let k=k0;k<=KB;k++){S+=Math.pow(k,1-lam)*Math.tanh(x*k);}
+  // tail k > KB as an integral in y = x k: c x^{λ-2} ∫_{y0}^∞ y^{1-λ} tanh y dy
+  const y0=x*(KB+0.5);let T=0;
+  if(y0<40){const n=400,a=Math.log(y0),b=Math.log(40),h=(b-a)/n;for(let j=0;j<=n;j++){const y=Math.exp(a+j*h),w=(j===0||j===n)?1:(j%2?4:2);T+=w*Math.pow(y,2-lam)*Math.tanh(y);}T*=h/3;T+=Math.pow(40,2-lam)/(lam-2);}
+  else T=Math.pow(y0,2-lam)/(lam-2);
+  S+=Math.pow(x,lam-2)*T;return c*S/z1;}
+function bulkM(Bk,K){if(K<=0)return 0;if(Bk.lam>3&&K<=Bk.Kc)return 0;
+  // scan down from m = 1 for the largest m with RHS(m) >= m, then bisect
+  let prev=1;if(bulkRHS(Bk,K,1)>=1)return 1;
+  for(let j=1;j<=72;j++){const m=Math.pow(10,-12*j/72);if(bulkRHS(Bk,K,m)-m>0){let lo=m,hi=prev;for(let t=0;t<32;t++){const mid=Math.sqrt(lo*hi);if(bulkRHS(Bk,K,mid)-mid>0)lo=mid;else hi=mid;}return Math.sqrt(lo*hi);}prev=m;}
+  return 0;}
+
+// Degree sequence as counts over distinct degrees
+function kcOf(N,omega,d,k0){return Math.max(k0,Math.floor(d*Math.pow(N,1/omega)+1e-9));}
+function pk(lam,k0,kc){const n=kc-k0+1,p=new Float64Array(n);let s=0;for(let i=0;i<n;i++){p[i]=Math.pow(k0+i,-lam);s+=p[i];}for(let i=0;i<n;i++)p[i]/=s;return p;}
+// Deterministic rule, Eq. (54): sum_{k'>=k} N_k' = int(N sum_{k'>=k} P(k'))
+function degSeqDet(N,lam,omega,d,k0){
+  const kc=kcOf(N,omega,d,k0),p=pk(lam,k0,kc),n=p.length,cnt=new Float64Array(n);let tail=0,prev=0;
+  for(let i=n-1;i>=0;i--){tail+=p[i];const c=i===0?N:Math.min(N,Math.floor(N*tail+1e-7));cnt[i]=c-prev;prev=c;}
+  return finishSeq(N,k0,kc,cnt);}
+function binom(n,p,rng){if(n<=0||p<=0)return 0;if(p>=1)return n;
+  if(p>0.5)return n-binom(n,1-p,rng);const mu=n*p;
+  if(mu<30){const q=1-p,r=p/q;let pr=Math.pow(q,n),F=pr,x=0;const u=rng();while(u>F&&x<n){pr*=r*(n-x)/(x+1);x++;F+=pr;if(pr<1e-300&&x>mu)break;}return x;}
+  const sd=Math.sqrt(mu*(1-p));let z;do{const u1=rng()||1e-12,u2=rng();z=Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);}while(false);
+  return Math.max(0,Math.min(n,Math.round(mu+sd*z)));}
+// Probabilistic (i.i.d.) degrees, drawn as a multinomial via sequential binomials
+function degSeqRand(N,lam,omega,d,k0,rng){
+  const kc=kcOf(N,omega,d,k0),p=pk(lam,k0,kc),n=p.length,cnt=new Float64Array(n);let rem=N,mass=1;
+  for(let i=n-1;i>=0;i--){const q=i===0?1:Math.min(1,p[i]/mass);const c=i===0?rem:binom(rem,q,rng);cnt[i]=c;rem-=c;mass-=p[i];if(mass<1e-300)mass=1e-300;}
+  return finishSeq(N,k0,kc,cnt);}
+function finishSeq(N,k0,kc,cnt){const ks=[],nk=[];let z1=0,z2=0,z4=0,kmax=0;
+  for(let i=0;i<cnt.length;i++)if(cnt[i]>0){const k=k0+i;ks.push(k);nk.push(cnt[i]);z1+=cnt[i]*k;z2+=cnt[i]*k*k;z4+=cnt[i]*k*k*k*k;kmax=k;}
+  z1/=N;z2/=N;z4/=N;const seq={N,k0,kc,kmax,ks:Float64Array.from(ks),w:Float64Array.from(nk,v=>v/N),nk:Float64Array.from(nk),z1,z2,z4,Kc:z1/z2};
+  seq.cks=seq.ks;seq.cw=seq.w;if(ks.length>900)compress(seq);return seq;}
+// For the integrals only: merge degrees above 300 into bins of relative width 0.4 %,
+// each represented by one degree that preserves the bin's weight and Σ n k².
+function compress(seq){const K=[],W=[];let i=0;const n=seq.ks.length;
+  while(i<n&&seq.ks[i]<=300){K.push(seq.ks[i]);W.push(seq.w[i]);i++;}
+  while(i<n){const top=seq.ks[i]*1.004;let w=0,s2=0;while(i<n&&seq.ks[i]<=top){w+=seq.w[i];s2+=seq.w[i]*seq.ks[i]*seq.ks[i];i++;}K.push(Math.sqrt(s2/w));W.push(w);}
+  seq.cks=Float64Array.from(K);seq.cw=Float64Array.from(W);}
+
+// Free energy density, Eq. (15), parametrized by the saddle point u (h = 0), constant −ln2 dropped
+function lncosh(x){x=Math.abs(x);if(x<1e-3){const x2=x*x;return x2/2-x2*x2/12+x2*x2*x2/45;}return x+Math.log1p(Math.exp(-2*x))-Math.LN2;}
+function fAt(seq,K,u){const ks=seq.cks,w=seq.cw,z1=seq.z1;let m=0,L=0,dm=0;
+  for(let i=0;i<ks.length;i++){const x=u*ks[i],t=Math.tanh(x);m+=w[i]*ks[i]*t;L+=w[i]*lncosh(x);dm+=w[i]*ks[i]*ks[i]*(1-t*t);}
+  m/=z1;dm/=z1;return {m,dm,f:-z1*K*m*m/2+z1*u*m-L};}
+// <m~> = ∫dm m e^{-N f} / ∫dm e^{-N f}  (Eq. 16), over m ≥ 0, i.e. <|m~|>
+const CG=(()=>{const g=[0];for(let j=0;j<=220;j++)g.push(1e-9*Math.pow(3e10,j/220));return g;})();
+function window_(seq,K){const N=seq.N,gs=CG.map(u=>N*fAt(seq,K,u).f);let mn=Infinity,im=0;gs.forEach((g,i)=>{if(g<mn){mn=g;im=i;}});
+  let lo=im,hi=im;while(lo>0&&gs[lo-1]-mn<60)lo--;while(hi<CG.length-1&&gs[hi+1]-mn<60)hi++;
+  return [lo<=1?0:CG[lo-1],CG[Math.min(CG.length-1,hi+1)]];}
+function meanM(seq,K,nf=1000){const [a,b]=window_(seq,K),N=seq.N,h=(b-a)/nf;const G=new Float64Array(nf+1),M=new Float64Array(nf+1),D=new Float64Array(nf+1);let mn=Infinity;
+  for(let j=0;j<=nf;j++){const r=fAt(seq,K,a+j*h);G[j]=N*r.f;M[j]=r.m;D[j]=r.dm;if(G[j]<mn)mn=G[j];}
+  let I0=0,I1=0;for(let j=0;j<=nf;j++){const wt=(j===0||j===nf)?1:(j%2?4:2),e=wt*D[j]*Math.exp(-(G[j]-mn));I0+=e;I1+=e*M[j];}return I1/I0;}
+// Probability density of m~ (both signs) for plotting: returns {m:[], p:[]}
+function mDensity(seq,K,n=400){const [a,b]=window_(seq,K),N=seq.N;const ms=[],gs=[];let mn=Infinity;
+  for(let j=0;j<=n;j++){const r=fAt(seq,K,a+(b-a)*j/n);ms.push(r.m);gs.push(N*r.f);if(N*r.f<mn)mn=N*r.f;}
+  const p=gs.map(g=>Math.exp(-(g-mn)));let area=0;for(let j=1;j<=n;j++)area+=(ms[j]-ms[j-1])*(p[j]+p[j-1])/2;area*=2;
+  return {m:ms,p:p.map(v=>v/area)};}
+
+// Analytic scaling function psi(x;a,b), Eq. (A3): U(s,r)=∫_0^∞ y^{s-1} e^{-y+r√y} dy
+function Ufun(s,r){// y=w^4: U = ∫ 4 w^{4s-1} e^{-w^4 + r w^2} dw
+  const wmax=Math.max(3,Math.sqrt(Math.max(0,r))*1.6+3),n=1200,h=wmax/n;let S=0,mx=-Infinity;const e=[];
+  for(let j=0;j<=n;j++){const w=j*h,v=-w*w*w*w+r*w*w;e.push(v);if(v>mx)mx=v;}
+  for(let j=0;j<=n;j++){const w=j*h,wt=(j===0||j===n)?1:(j%2?4:2),pw=4*s-1===0?1:Math.pow(w,4*s-1);S+=wt*4*pw*Math.exp(e[j]-mx);}
+  return {v:S*h/3,lg:mx};}
+function psi(x,a,b){const r=Math.sqrt(3*a*a/b)*x,U2=Ufun(0.5,r),U4=Ufun(0.25,r);return Math.pow(12/b,0.25)*U2.v/U4.v*Math.exp(U2.lg-U4.lg);}
+
+// Metropolis on the weighted fully connected model, Eq. (8), h = 0
+function makeMC(seq,rng){
+  let N=seq.N,deg=new Float64Array(N),p=0;for(let i=0;i<seq.ks.length;i++)for(let c=0;c<seq.nk[i];c++)deg[p++]=seq.ks[i];
+  const s=new Int8Array(N).fill(1);let M=0;for(let i=0;i<N;i++)M+=deg[i];const norm=N*seq.z1;
+  return {deg,s,norm,get M(){return M;},set M(v){M=v;},
+    reset(up){M=0;for(let i=0;i<N;i++){s[i]=up?1:(rng()<0.5?1:-1);M+=deg[i]*s[i];}},
+    sweep(K,n){const c=2*K/norm;for(let t=0;t<n;t++)for(let i=0;i<N;i++){const k=deg[i],si=s[i],dE=c*k*(si*M-k);
+      if(dE<=0||rng()<Math.exp(-dE)){s[i]=-si;M-=2*k*si;}}return M/norm;}};}
+
+// ---------- utilities ----------
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FONT='11.5px Figtree, system-ui, -apple-system, sans-serif';
+function fmtD(v){const a=Math.abs(v);return a>=100?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2);}
+function setup(cv){const dpr=Math.min(window.devicePixelRatio||1,2),w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return null;
+  const W=Math.round(w*dpr),H=Math.round(h*dpr);if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
+  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return {ctx,w,h};}
+function niceStep(r,n){const raw=r/n,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;return (f<1.5?1:f<3?2:f<7?5:10)*p;}
+function linTicks(a,b,n){const s=niceStep((b-a)||1,n),t=[];for(let v=Math.ceil(a/s-1e-9)*s;v<=b+1e-9*Math.abs(s);v+=s)t.push(+v.toFixed(10));return t;}
+function logTicks(a,b){const lo=Math.floor(Math.log10(a)),hi=Math.ceil(Math.log10(b)),t=[],few=hi-lo<=2;
+  for(let e=lo;e<=hi;e++)for(const m of few?[1,2,5]:[1]){const v=m*Math.pow(10,e);if(v>=a*0.999&&v<=b*1.001)t.push(v);}return t;}
+function tickLabel(v){if(v===0)return '0';const a=Math.abs(v);if(a>=1e4||a<1e-3){const e=Math.round(Math.log10(a));return Math.abs(a/Math.pow(10,e)-1)<1e-6?'10^'+e:v.toExponential(0);}return String(+v.toPrecision(3));}
+function sup(s){const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};return s.replace(/10\^(-?\d+)/,(x,e)=>'10'+[...e].map(c=>m[c]).join(''));}
+
+function plot(cv,cfg){
+  const S=setup(cv);if(!S)return null;const {ctx,w,h}=S;
+  const ink=css('--ink'),muted=css('--muted'),grid=css('--grid'),rule=css('--rule'),panel=css('--panel');
+  const m={l:cfg.ml??46,r:12,t:10,b:34},pw=w-m.l-m.r,ph=h-m.t-m.b;
+  const [x0,x1]=cfg.xlim,[y0,y1]=cfg.ylim,lx=!!cfg.xlog,ly=!!cfg.ylog;
+  const tx=v=>lx?Math.log10(v):v,ty=v=>ly?Math.log10(v):v;
+  const X=v=>m.l+(tx(v)-tx(x0))/(tx(x1)-tx(x0))*pw,Y=v=>m.t+ph-(ty(v)-ty(y0))/(ty(y1)-ty(y0))*ph;
+  ctx.font=FONT;
+  const xt=lx?logTicks(x0,x1):linTicks(x0,x1,Math.max(3,Math.floor(pw/70)));
+  const yt=ly?logTicks(y0,y1):linTicks(y0,y1,Math.max(3,Math.floor(ph/42)));
+  ctx.strokeStyle=grid;ctx.lineWidth=1;ctx.beginPath();
+  for(const v of xt){const px=Math.round(X(v))+.5;ctx.moveTo(px,m.t);ctx.lineTo(px,m.t+ph);}
+  for(const v of yt){const py=Math.round(Y(v))+.5;ctx.moveTo(m.l,py);ctx.lineTo(m.l+pw,py);}
+  ctx.stroke();
+  ctx.fillStyle=muted;ctx.textAlign='center';ctx.textBaseline='top';
+  for(const v of xt)ctx.fillText(sup(tickLabel(v)),X(v),m.t+ph+5);
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  for(const v of yt)ctx.fillText(sup(tickLabel(v)),m.l-6,Y(v));
+  ctx.strokeStyle=rule;ctx.strokeRect(m.l+.5,m.t+.5,pw-1,ph-1);
+  ctx.fillStyle=muted;ctx.textAlign='center';ctx.textBaseline='bottom';
+  if(cfg.xlabel)ctx.fillText(cfg.xlabel,m.l+pw/2,h-1);
+  if(cfg.ylabel){ctx.save();ctx.translate(11,m.t+ph/2);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';ctx.fillText(cfg.ylabel,0,0);ctx.restore();}
+  ctx.save();ctx.beginPath();ctx.rect(m.l,m.t,pw,ph);ctx.clip();
+  for(const b of cfg.bars||[]){ctx.fillStyle=b.color;const yA=Y(ly?y0:0),yB=Y(b.y);ctx.fillRect(X(b.x0),yB,X(b.x1)-X(b.x0),yA-yB);}
+  for(const v of cfg.vlines||[]){ctx.strokeStyle=v.color||muted;ctx.lineWidth=v.width||1;ctx.setLineDash(v.dash||[4,4]);ctx.beginPath();ctx.moveTo(X(v.x),m.t);ctx.lineTo(X(v.x),m.t+ph);ctx.stroke();}
+  for(const v of cfg.hlines||[]){ctx.strokeStyle=v.color||muted;ctx.lineWidth=v.width||1;ctx.setLineDash(v.dash||[4,4]);ctx.beginPath();ctx.moveTo(m.l,Y(v.y));ctx.lineTo(m.l+pw,Y(v.y));ctx.stroke();}
+  ctx.setLineDash([]);
+  for(const s of cfg.series||[]){
+    const ok=(x,y)=>isFinite(x)&&isFinite(y)&&(!lx||x>0)&&(!ly||y>0);
+    if(s.width!==0){ctx.strokeStyle=s.color;ctx.lineWidth=s.width||1.6;ctx.setLineDash(s.dash||[]);ctx.lineJoin='round';ctx.beginPath();let pen=false;
+      for(let i=0;i<s.x.length;i++){if(!ok(s.x[i],s.y[i])){pen=false;continue;}const px=X(s.x[i]),py=Y(s.y[i]);
+        if(pen&&s.breakAt&&s.breakAt(i)){ctx.moveTo(px,py);}else if(pen)ctx.lineTo(px,py);else ctx.moveTo(px,py);pen=true;}
+      ctx.stroke();ctx.setLineDash([]);}
+    if(s.marker){for(let i=0;i<s.x.length;i++){if(!ok(s.x[i],s.y[i]))continue;ctx.beginPath();ctx.arc(X(s.x[i]),Y(s.y[i]),s.marker,0,7);const ho=s.hollow&&(typeof s.hollow==='function'?s.hollow(i):true);if(ho){ctx.fillStyle=panel;ctx.fill();ctx.strokeStyle=s.color;ctx.lineWidth=1.3;ctx.stroke();}else{ctx.fillStyle=s.color;ctx.fill();}}}
+  }
+  for(const d of cfg.dots||[]){ctx.beginPath();ctx.arc(X(d.x),Y(d.y),d.r||4,0,7);if(d.hollow){ctx.fillStyle=panel;ctx.fill();ctx.strokeStyle=d.color;ctx.lineWidth=1.6;ctx.stroke();}else{ctx.fillStyle=d.color;ctx.fill();ctx.strokeStyle=panel;ctx.lineWidth=1.5;ctx.stroke();}}
+  ctx.restore();
+  if(cfg.legend&&cfg.legend.length){ctx.font=FONT;const lh=16,wmax=Math.max(...cfg.legend.map(l=>ctx.measureText(l.label).width))+30;
+    const bx=cfg.legendPos==='tl'||cfg.legendPos==='bl'?m.l+8:m.l+pw-wmax-8,by=cfg.legendPos==='bl'||cfg.legendPos==='br'?m.t+ph-8-cfg.legend.length*lh-4:m.t+8;
+    ctx.fillStyle=panel;ctx.globalAlpha=.88;ctx.fillRect(bx-4,by-2,wmax+6,cfg.legend.length*lh+6);ctx.globalAlpha=1;
+    cfg.legend.forEach((l,i)=>{const yy=by+i*lh+9;ctx.strokeStyle=l.color;ctx.lineWidth=2;ctx.setLineDash(l.dash||[]);ctx.beginPath();ctx.moveTo(bx,yy);ctx.lineTo(bx+18,yy);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=ink;ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(l.label,bx+24,yy);});}
+  if(cfg.message){ctx.fillStyle=muted;ctx.font='13.5px Figtree, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    const lines=cfg.message.split('\n');lines.forEach((t,i)=>ctx.fillText(t,m.l+pw/2,m.t+ph/2+(i-(lines.length-1)/2)*18));}
+  return {X,Y,m,pw,ph,ctx};
+}
+
+
+// ---------- state ----------
+const ST={lam:4,om:4,d:3,k0:3};
+const tick=()=>new Promise(r=>setTimeout(r,0));
+const sizeColors=k=>['--s0','--s1','--s2','--s3','--s4'].slice(Math.max(0,5-k)).map(css).concat(k>5?[css('--ink')]:[]).slice(-k);
+const fmtN=n=>n%1e3===0?(n/1e3).toLocaleString('en-US')+'×10³':n.toLocaleString('en-US');
+const pow10=x=>{const e=Math.floor(x+1e-9),m=Math.pow(10,x-e);return Math.abs(m-1)<0.02?'10'+sup('10^'+e).slice(2):(m.toFixed(1)+'×10'+sup('10^'+e).slice(2));};
+const f3=v=>Math.abs(v)<5e-4?'0':(v>0?'':'−')+Math.abs(v).toFixed(3);
+function pred(l,w){const zeta=(l-3)/w,nat=Math.abs(w-(l-1))<0.051;
+  if(l<=3.001){const inv=(1-(l-1)/w)/2;return {type:'low',nat,invnuc:inv,nuc:inv>1e-9?1/inv:Infinity,expC:-(1+(3*l-7)/w)/4,kcS:-(3-l)/w,bulkExp:l<3?(l-2)/(3-l):Infinity};}
+  if(l>=5)return {type:'std',zeta,nat,beta:0.5,nubar:2,expC:-0.25,expB:zeta>=0.5?-0.25:-(1-zeta)/2};
+  const nuc=2/(1-(5-l)/w),nus=w/(l-3),bt=(w+5-l)/(2*(w-5+l));
+  return {type:'two',zeta,beta:1/(l-3),nuc,nus,bt,expC:-(1+(5-l)/w)/4,expB:-(1-zeta)/2,nat};}
+const isLow=()=>ST.lam<=3.001;
+// ---------- hero: live globally coupled network ----------
+let HV=null,playing=!reduceMotion,visible=true,raf=0;
+const hex=h=>{h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];};
+function buildHero(){
+  const N=+$('nN').value,seq=degSeqDet(N,ST.lam,ST.om,ST.d,ST.k0),rng=mulberry32(hashSeed(7,N,Math.round(ST.lam*10),Math.round(ST.om*10)));
+  const mc=makeMC(seq,rng),deg=mc.deg;mc.reset(true);
+  const order=[...Array(N).keys()].sort((a,b)=>deg[b]-deg[a]),pos=new Float64Array(2*N),GA=Math.PI*(3-Math.sqrt(5));
+  order.forEach((i,r)=>{const rr=Math.sqrt((r+0.5)/N),th=r*GA;pos[2*i]=rr*Math.cos(th);pos[2*i+1]=rr*Math.sin(th);});
+  // strongest couplings: all pairs among the 32 largest-weight nodes (496 pairs), for the frustration overlay
+  const T=Math.min(N,32),top=order.slice(0,T),strong=[];for(let a=0;a<T;a++)for(let b=a+1;b<T;b++)strong.push([top[a],top[b]]);
+  HV={N,seq,mc,rng,deg,pos,order,strong,layer:null,layerKey:'',draw:order.slice().reverse(),sweeps:0,trace:new Float32Array(600),tn:0,hist:new Float64Array(80),hc:0,sum:0};
+  $('netInfo').textContent=`${N} nodes, nominal degrees ${seq.ks[0]} to ${seq.kmax}, all ${(N*(N-1)/2).toLocaleString('en-US')} pairs coupled`;
+  heroTheory();drawNet();
+}
+function heroK(){return HV.seq.Kc*(1+ +$('eSl').value);}
+function heroTheory(){const K=heroK();HV.th=meanM(HV.seq,K);HV.dens=mDensity(HV.seq,K);HV.hist.fill(0);HV.hc=0;HV.sum=0;HV.tn=0;readouts();drawHist();}
+function stepHero(n){const K=heroK();for(let t=0;t<n;t++){const m=HV.mc.sweep(K,1);HV.sweeps++;HV.trace[HV.tn%600]=m;HV.tn++;
+  HV.hist[Math.min(79,Math.max(0,Math.floor((m+1)*40)))]++;HV.hc++;HV.sum+=Math.abs(m);}}
+function readouts(){const Bk=bulk(ST.lam,ST.k0),m=HV.mc.M/HV.mc.norm,K=heroK();
+  $('eOut').textContent=(+$('eSl').value).toFixed(3);$('rM').textContent=f3(m);$('rAvg').textContent=HV.hc?(HV.sum/HV.hc).toFixed(3):'–';
+  $('rTh').textContent=HV.th.toFixed(3);$('rK').textContent=K.toFixed(4);$('rKc').textContent=`${HV.seq.Kc.toFixed(4)}, ${Bk.Kc>0?Bk.Kc.toFixed(4):'0'}`;
+  $('rEb').textContent=Bk.Kc>0?f3(K/Bk.Kc-1):'none: K̃c∞ = 0';$('rSw').textContent=HV.sweeps.toLocaleString('en-US');}
+// Hubs at the centre of a sunflower spiral
+function netGeom(w,h){const R=Math.min(w,h-44)/2-14;return {R,cx:w/2,cy:(h-34)/2+10};}
+// Static layer: every pair (i, j) is a line with opacity ∝ k_i k_j, i.e. ∝ its coupling K̃ k_i k_j / N z₁.
+// Pairs are grouped into opacity levels and stroked once per level; pairs fainter than 1/400 of the strongest are left out.
+function buildLayer(cv,w,h){
+  const sq=$('sqrtS').checked,key=`${cv.width}x${cv.height}:${css('--muted')}:${sq}`;if(HV.layer&&HV.layerKey===key)return;const dpr=cv.width/w;
+  const L=document.createElement('canvas');L.width=cv.width;L.height=cv.height;const c=L.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);
+  const {N,pos,deg}=HV,{R,cx,cy}=netGeom(w,h),kmax=deg[HV.order[0]],wmax=kmax*kmax,LV=24,paths=Array.from({length:LV},()=>new Path2D());
+  // peak opacity ∝ 1/N_eff with N_eff = Σ_{i<j} r_ij, so the total shading (≈ amax · N_eff) is similar for any λ and N
+  let S1=0,S2=0;for(let i=0;i<N;i++){const v=sq?Math.sqrt(deg[i]):deg[i];S1+=v;S2+=v*v;}const Neff=(S1*S1-S2)/2/(sq?kmax:wmax),amax=Math.max(0.02,Math.min(0.85,1300/Neff));
+  for(let i=0;i<N;i++){const xi=cx+R*pos[2*i],yi=cy+R*pos[2*i+1],ki=deg[i];
+    for(let j=i+1;j<N;j++){const r0=ki*deg[j]/wmax,r=sq?Math.sqrt(r0):r0;if(amax*r<0.0015)continue;const lv=Math.min(LV-1,Math.floor(Math.sqrt(r)*LV));paths[lv].moveTo(xi,yi);paths[lv].lineTo(cx+R*pos[2*j],cy+R*pos[2*j+1]);}}
+  c.strokeStyle=css('--muted');c.lineWidth=0.5;
+  for(let lv=0;lv<LV;lv++){const r=Math.pow((lv+0.5)/LV,2);c.globalAlpha=amax*r;c.stroke(paths[lv]);}
+  HV.layer=L;HV.layerKey=key;HV.amax=amax;
+}
+function drawNet(){
+  const cv=$('net'),S=setup(cv);if(!S||!HV)return;const {ctx,w,h}=S,{N,pos,deg}=HV,s=HV.mc.s,{R,cx,cy}=netGeom(w,h);
+  buildLayer(cv,w,h);ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(HV.layer,0,0);ctx.restore();
+  const up=css('--up'),down=css('--down'),panel=css('--panel'),X=i=>cx+R*pos[2*i],Y=i=>cy+R*pos[2*i+1];
+  if($('frus').checked){const kmax=deg[HV.order[0]],wmax=kmax*kmax;ctx.strokeStyle=css('--wall');ctx.lineWidth=0.9;
+    for(const [i,j] of HV.strong){if(s[i]===s[j])continue;ctx.globalAlpha=Math.min(0.55,0.04+2.5*HV.amax*deg[i]*deg[j]/wmax);ctx.beginPath();ctx.moveTo(X(i),Y(i));ctx.lineTo(X(j),Y(j));ctx.stroke();}ctx.globalAlpha=1;}
+  const sf=Math.max(0.6,Math.min(1.8,Math.sqrt(w*h/(N*900))));
+  for(const i of HV.draw){ctx.beginPath();ctx.arc(X(i),Y(i),sf*(1.2+0.75*Math.sqrt(deg[i])),0,7);ctx.fillStyle=s[i]>0?up:down;ctx.fill();ctx.strokeStyle=panel;ctx.lineWidth=0.8;ctx.stroke();}
+}
+function drawHist(){if(!HV)return;const bars=[],bw=2/80,c=css('--down');let ym=0;
+  if(HV.hc)for(let b=0;b<80;b++){const y=HV.hist[b]/(HV.hc*bw);ym=Math.max(ym,y);bars.push({x0:-1+b*bw,x1:-1+(b+1)*bw,y,color:c});}
+  const d=HV.dens,xs=[...d.m.map(v=>-v).reverse(),...d.m],ys=[...d.p.slice().reverse(),...d.p];for(const v of ys)ym=Math.max(ym,v);
+  plot($('hist'),{xlim:[-1,1],ylim:[0,ym*1.08||1],xlabel:'m̃',ylabel:'P(m̃)',ml:40,bars:bars.map(b=>({...b,color:c+'88'})),series:[{x:xs,y:ys,color:css('--ink'),width:1.6}]});}
+function drawTrace(){if(!HV)return;const n=Math.min(HV.tn,600),xs=[],ys=[];for(let j=0;j<n;j++){xs.push(HV.sweeps-n+j);ys.push(HV.trace[(HV.tn-n+j)%600]);}
+  plot($('trace'),{xlim:[Math.max(0,HV.sweeps-600),Math.max(600,HV.sweeps)],ylim:[-1,1],xlabel:'sweep',ylabel:'m̃',ml:40,series:[{x:xs,y:ys,color:css('--up'),width:1.1}],hlines:[{y:0,color:css('--muted'),dash:[2,4]}]});}
+let lastHist=0;
+function frame(t){raf=0;if(!playing||!visible||!HV)return;stepHero(+$('spd').value);drawNet();readouts();
+  if(t-lastHist>150){drawHist();drawTrace();lastHist=t;}raf=requestAnimationFrame(frame);}
+function kick(){if(!raf&&playing&&visible)raf=requestAnimationFrame(frame);}
+new IntersectionObserver(es=>{visible=es[0].isIntersecting;kick();}).observe($('net'));
+
+// ---------- theory ----------
+let TH={tok:0,ftok:0,me:null,fss:null},B=null;
+function drawSeq(){
+  const N=Math.round(Math.pow(10,+$('thN').value)),seq=degSeqDet(N,ST.lam,ST.om,ST.d,ST.k0);$('thNOut').textContent=pow10(+$('thN').value);
+  const p=pk(ST.lam,ST.k0,seq.kc),xs=[],ys=[];for(let i=0;i<p.length;i++){xs.push(ST.k0+i);ys.push(p[i]);}
+  const ymin=Math.min(...ys.filter(v=>v>0),...Array.from(seq.w))*0.5;
+  plot($('pkPlot'),{ml:54,xlim:[ST.k0*0.9,seq.kc*1.2],ylim:[Math.max(ymin,1/N*0.5),1],xlog:true,ylog:true,xlabel:'k',ylabel:'N_k / N',
+    series:[{x:xs,y:ys,color:css('--muted'),dash:[5,4],width:1.2},{x:Array.from(seq.ks),y:Array.from(seq.w),color:css('--down'),width:0,marker:2.6}],vlines:[{x:seq.kc,color:css('--up'),dash:[3,3]}]});
+  const kv=[['k_c target, actual',`${seq.kc}, ${seq.kmax}`],['z₁, z₂',`${seq.z1.toFixed(3)}, ${seq.z2.toFixed(2)}`],['z₄',seq.z4.toPrecision(4)],
+    ['K̃c(N) = z₁/z₂',seq.Kc.toFixed(5)],...(B.Kc>0?[['K̃c∞',B.Kc.toFixed(5)],['Shift ε_f = K̃c(N)/K̃c∞ − 1',seq.Kc/B.Kc-1>0?(seq.Kc/B.Kc-1).toExponential(2):'≈ 0']]:[['K̃c∞','0, since z₂ → ∞'],['K̃c(N) scaling',ST.lam>2.999?'∝ 1/ln N':'N^'+f3(-(3-ST.lam)/ST.om)]])];
+  $('seqKv').innerHTML=kv.map(([a,b])=>`<dt>${a}</dt><dd>${String(b).replace(/N\^(.+)/,'N<sup>$1</sup>')}</dd>`).join('');
+  drawF(seq);
+}
+function drawF(seq){
+  if(!seq)seq=degSeqDet(Math.round(Math.pow(10,+$('thN').value)),ST.lam,ST.om,ST.d,ST.k0);
+  const eps=+$('thE').value,K=seq.Kc*(1+eps);$('thEOut').textContent=eps.toFixed(3);
+  let lo=0,hi=50;for(let t=0;t<60;t++){const mid=(lo+hi)/2;if(fAt(seq,K,mid).m<0.6)lo=mid;else hi=mid;}
+  const ms=[],fs=[],ls=[],a=seq.z1*seq.z1/seq.z2,b=Math.pow(seq.z1/seq.z2,4)*seq.z4;let fmin=0,mstar=0;
+  for(let j=0;j<=320;j++){const u=hi*Math.pow(j/320,1.6),r=fAt(seq,K,u);ms.push(r.m);fs.push(r.f);if(r.f<fmin){fmin=r.f;mstar=r.m;}ls.push(-a*eps*r.m*r.m/2+b*Math.pow(r.m,4)/12);}
+  const top=fmin<-1e-9?-fmin*3:fs[Math.floor(fs.length*0.35)],cfg={ml:56,xlim:[0,0.6],ylim:[Math.min(fmin*1.25,-top*0.08),top],xlabel:'m̃',ylabel:'f(m̃) − f(0)',
+    series:[{x:ms,y:ls,color:css('--muted'),dash:[5,4],width:1.3},{x:ms,y:fs,color:css('--down'),width:2}],dots:mstar>0?[{x:mstar,y:fmin,color:css('--up'),r:4.5}]:[],
+    legend:[{label:'Eq. (15)',color:css('--down')},{label:'Landau, −aεm̃²/2 + bm̃⁴/12',color:css('--muted'),dash:[5,4]}],legendPos:'tl',vlines:[]};
+  const mx=seq.z2/(seq.z1*seq.kmax);if(ST.lam<5&&mx<0.6&&mx>0.003)cfg.vlines.push({x:mx,color:css('--up'),dash:[2,3]});
+  plot($('fPlot'),cfg);
+  $('fCap').innerHTML=`Minimum at <var>m̃</var> = ${mstar.toFixed(3)} for ε = ${eps.toFixed(3)}.`+(isLow()?` The quartic Landau form holds only below <var>m̃</var><sub>×</sub> = <var>z</var><sub>2</sub>/<var>z</var><sub>1</sub><var>k<sub>c</sub></var> = ${mx.toFixed(3)} (dotted). Beyond it the non-quadratic part grows as <var>m̃</var><sup>(λ−1)/(λ−2)</sup>, a power above 2, so once <var>k<sub>c</sub></var> → ∞ the −<var>z</var><sub>1</sub><var>K̃m̃</var>²/2 term wins at small <var>m̃</var> for every <var>K̃</var> &gt; 0.`:ST.lam<5?` The quartic Landau form holds only below <var>m̃</var><sub>×</sub> = <var>z</var><sub>2</sub>/<var>z</var><sub>1</sub><var>k<sub>c</sub></var> = ${mx.toFixed(3)} (dotted); beyond it <var>Q</var>(<var>m̃</var>) ∼ <var>m̃</var><sup>λ−1</sup> (Eq. 41).`:' For λ > 5 the Landau form is accurate near the minimum.');
+}
+function verdict(){
+  const P=pred(ST.lam,ST.om),l=ST.lam,w=ST.om,v=$('verdict');let kv=[];
+  if(P.type==='low'){const ex=P.bulkExp;
+    v.innerHTML=`<strong>No transition in the thermodynamic limit.</strong> For 2 &lt; λ ≤ 3 the second moment <var>z</var><sub>2</sub> diverges with <var>k<sub>c</sub></var>, so the pseudo-critical coupling <var>K̃<sub>c</sub></var>(<var>N</var>) = <var>z</var><sub>1</sub>/<var>z</var><sub>2</sub> ∝ <var>N</var><sup>−(3−λ)/ω</sup> drifts to zero and any fixed <var>K̃</var> &gt; 0 is eventually ordered, with ⟨<var>m̃</var>⟩<sub>∞</sub> ∝ <var>K̃</var><sup>(λ−2)/(3−λ)</sup>. `+(P.nat?`At the natural cutoff the critical window no longer shrinks in ε, and ⟨<var>m̃</var>⟩<var>N</var><sup>(λ−2)/(λ−1)</sup> is a function of ε alone.`:`The critical window around <var>K̃<sub>c</sub></var>(<var>N</var>) shrinks as <var>N</var><sup>−1/ν̄<sub>c</sub></sup> with ν̄<sub>c</sub> = 2/[1 − (λ − 1)/ω].`)+` <em>The paper covers λ &gt; 3 only; this case is derived here from the same saddle point (see the note below).</em>`;
+    kv=[['K̃c(N) ∝',ST.lam>2.999?'1/ln N':`N^${f3(P.kcS)}`],['Bulk ⟨m̃⟩∞ ∝ K̃^x, x',isFinite(ex)?ex.toFixed(3):'log'],['1/ν̄c = [1 − (λ − 1)/ω]/2',P.invnuc.toFixed(3)],['⟨m̃⟩ at ε = 0','N^'+f3(P.expC)],['z₂, K̃c self-averaging',P.nat?'no':'weakly']];}
+  else if(P.type==='std'){v.innerHTML=`<strong>Standard mean-field scaling.</strong> <var>z</var><sub>4</sub> is finite, so <var>f</var>(<var>m̃</var>) is Landau-like and ⟨<var>m̃</var>⟩ = <var>N</var><sup>−1/4</sup>ψ(ε<var>N</var><sup>1/2</sup>). The twist is the shift <var>K̃<sub>c</sub></var>(<var>N</var>) − <var>K̃<sub>c</sub></var><sup>∞</sup> ∝ <var>N</var><sup>−ζ</sup> with ζ = (λ − 3)/ω = ${P.zeta.toFixed(3)}`+(P.zeta>0.5?', which is too small to change scaling at the bulk critical point.':P.zeta<0.5?'. Since ζ < 1/2 the bulk critical point falls outside the critical window, and the exponent there changes to −(1 − ζ)/2.':'. At ζ = 1/2 only the amplitude at the bulk critical point changes.')+(Math.abs(l-5)<0.05?' Logarithmic corrections appear at λ = 5.':'');
+    kv=[['β, ν̄','1/2, 2'],['ζ = (λ − 3)/ω',P.zeta.toFixed(3)],['⟨m̃⟩ at ε = 0','N^'+f3(P.expC)],['⟨m̃⟩ at ε_b = 0','N^'+f3(P.expB)]];}
+  else if(P.nat){v.innerHTML=`<strong>Natural cutoff, single-parameter scaling.</strong> At ω = λ − 1 the two scaling variables merge into ε<var>N</var><sup>1/ν̄</sup> with ν̄ = (λ − 1)/(λ − 3) = ${((l-1)/(l-3)).toFixed(3)}, the same exponent as on quenched networks. Both critical points give ⟨<var>m̃</var>⟩ ∼ <var>N</var><sup>−1/(λ−1)</sup>.`;
+    kv=[['β = 1/(λ − 3)',P.beta.toFixed(3)],['ν̄ = (λ − 1)/(λ − 3)',((l-1)/(l-3)).toFixed(3)],['⟨m̃⟩ at ε = 0 and ε_b = 0','N^'+f3(-1/(l-1))],['z₄ self-averaging','no']];}
+  else{v.innerHTML=`<strong>Two-parameter scaling.</strong> <var>z</var><sub>4</sub> grows like <var>N</var><sup>(5−λ)/ω</sup>, cutting off the quartic term at <var>m̃</var><sub>×</sub> ∼ 1/<var>k<sub>c</sub></var>. Near ε = 0 the scaling variable is ε<var>N</var><sup>1/ν̄<sub>c</sub></sup>; toward the bulk it becomes ε<var>N</var><sup>1/ν̄*</sup>, giving four regimes (paper Fig. 3): bulk, intermediate with ⟨<var>m̃</var>⟩ ∼ ε<sup>1/2</sup>, critical, and disordered.`;
+    kv=[['β = 1/(λ − 3)',P.beta.toFixed(3)],['ν̄c = 2/[1 − (5 − λ)/ω]',P.nuc.toFixed(3)],['ν̄* = ω/(λ − 3)',P.nus.toFixed(3)],['β̃ = (ω + 5 − λ)/[2(ω − 5 + λ)]',P.bt.toFixed(3)],['⟨m̃⟩ at ε = 0','N^'+f3(P.expC)],['⟨m̃⟩ at ε_b = 0','N^'+f3(P.expB)]];}
+  $('expKv').innerHTML=kv.map(([a,b])=>`<dt>${a}</dt><dd>${b.replace(/N\^(.+)/,'N<sup>$1</sup>')}</dd>`).join('');
+}
+const KC_MAX=3e6,okN=N=>kcOf(N,ST.om,ST.d,ST.k0)<=KC_MAX;
+let ME_N=[1e3,1e4,1e5,1e6,1e7];
+// axis 'e': ε relative to K̃c(N). axis 'b': ε_b relative to K̃c∞ (λ > 3) or the absolute coupling K̃ (λ ≤ 3, where K̃c∞ = 0).
+async function computeME(){
+  ME_N=[1e3,1e4,1e5,1e6,1e7].filter(okN);
+  const tok=++TH.tok,axis=document.querySelector('input[name=axis]:checked').value,lg=$('meLog').checked,low=isLow();
+  let xs,toK;const K3=degSeqDet(1e3,ST.lam,ST.om,ST.d,ST.k0).Kc,K7=degSeqDet(ME_N[ME_N.length-1],ST.lam,ST.om,ST.d,ST.k0).Kc;
+  if(axis==='b'&&low){xs=lg?Array.from({length:44},(_,j)=>K7/5*Math.pow(50*K3/K7,j/43)):Array.from({length:61},(_,j)=>3*K3*j/60);toK=(seq,x)=>x;}
+  else{xs=lg?Array.from({length:44},(_,j)=>1e-4*Math.pow(low&&axis==='e'?1e6:1e4,j/43)):Array.from({length:61},(_,j)=>-0.2+(low&&axis==='e'?2.2:0.6)*j/60);
+    toK=axis==='b'?(seq,x)=>B.Kc*(1+x):(seq,x)=>seq.Kc*(1+x);}
+  TH.me={axis,lg,low,xs,curves:[],bulk:null};drawME();
+  for(const N of ME_N){const seq=degSeqDet(N,ST.lam,ST.om,ST.d,ST.k0);
+    TH.me.curves.push(xs.map(x=>{const K=toK(seq,x);return K>0?meanM(seq,K,700):NaN;}));drawME();await tick();if(tok!==TH.tok)return;}
+  if(axis==='b'){TH.me.bulk=xs.map(x=>{const K=low?x:B.Kc*(1+x);return bulkM(B,K);});drawME();}
+}
+function drawME(){
+  const M=TH.me;if(!M)return;const cols=sizeColors(ME_N.length),series=[],legend=[],low=M.low,ink=css('--ink'),mu=css('--muted');let ymin=1;
+  M.curves.forEach((ys,i)=>{series.push({x:M.xs,y:ys,color:cols[i],width:1.7});legend.push({label:'N = '+pow10(Math.log10(ME_N[i])),color:cols[i]});ys.forEach(v=>{if(v>0)ymin=Math.min(ymin,v);});});
+  if(M.bulk){series.push({x:M.xs,y:M.bulk,color:ink,dash:[6,3],width:2});legend.push({label:'N = ∞ (bulk)',color:ink,dash:[6,3]});}
+  const P=pred(ST.lam,ST.om),xl=M.axis==='b'?(low?'K̃':'ε_b'):'ε',x0=M.xs[0],x1=M.xs[M.xs.length-1];
+  const cfg={ml:52,xlim:[M.lg?x0:x0,x1],ylim:M.lg?[Math.max(1e-4,ymin*0.8),1.2]:[0,1.02],xlog:M.lg,ylog:M.lg,xlabel:xl,ylabel:'⟨m̃⟩',series,legend,legendPos:M.lg?'br':(low&&M.axis==='b'?'br':'tl'),vlines:M.lg||(low&&M.axis==='b')?[]:[{x:0,color:mu,dash:[2,4]}]};
+  if(M.lg&&M.curves.length===ME_N.length){const last=M.curves[M.curves.length-1],j=Math.floor(M.xs.length*0.93);
+    const add=(sl,xa,ya,lab,col)=>{series.push({x:[xa/100,xa],y:[ya*Math.pow(0.01,sl),ya],color:col||mu,dash:[5,4],width:1.2});legend.push({label:lab,color:col||mu,dash:[5,4]});};
+    if(low){if(M.axis==='b'&&M.bulk&&isFinite(P.bulkExp)){const jb=Math.floor(M.xs.length*0.35);add(P.bulkExp,M.xs[jb],M.bulk[jb]*1.8,`slope (λ−2)/(3−λ) = ${P.bulkExp.toFixed(2)}`);}}
+    else if(P.type==='two'&&!P.nat){add(P.beta,M.xs[j],last[j]*1.6,`slope ${P.beta.toFixed(2)}, regime I`);const i2=Math.floor(M.xs.length*0.55);series.push({x:[M.xs[i2]/30,M.xs[i2]*3],y:[last[i2]*0.55*Math.pow(1/30,0.5),last[i2]*0.55*Math.pow(3,0.5)],color:css('--up'),dash:[5,4],width:1.2});legend.push({label:'slope 1/2, regime II',color:css('--up'),dash:[5,4]});}
+    else add(P.beta,M.xs[j],last[j]*1.6,`slope β = ${P.beta.toFixed(2)}`);}
+  plot($('mePlot'),cfg);
+  let cap=low?'Computed for <var>N</var> = 10³ to 10⁷.':'Paper Figs. 1–3, computed for <var>N</var> = 10³ to 10⁷.';
+  if(low)cap+=M.axis==='b'?' Against the absolute coupling, finite-<var>N</var> curves climb toward the bulk curve, which is nonzero for every <var>K̃</var> &gt; 0: there is no threshold.':' Against ε each curve has its own pseudo-critical point, but <var>K̃<sub>c</sub></var>(<var>N</var>) itself moves toward zero as <var>N</var> grows.';
+  else{if(M.axis==='b')cap+=' Against ε<sub>b</sub> the curves are shifted right by ε<sub>f</sub> ∝ <var>N</var><sup>−ζ</sup> and approach the bulk curve.';
+    if(M.lg)cap+=P.type==='two'&&!P.nat?' On log–log axes the largest sizes show the intermediate slope 1/2 (finite <var>k<sub>c</sub></var>) bending toward the bulk slope β.':' On log–log axes the curves approach the bulk slope β as <var>N</var> grows.';}
+  $('mdCap').innerHTML=cap;
+}
+async function computeFSS(){
+  const tok=++TH.ftok,low=isLow(),Ns=Array.from({length:26},(_,j)=>Math.round(Math.pow(10,3+5*j/25))).filter(okN),m0=[],mb=[];
+  const Kfix=low?degSeqDet(1e5,ST.lam,ST.om,ST.d,ST.k0).Kc:B.Kc;TH.fss={Ns,m0,mb,low,Kfix,mInf:low?bulkM(B,Kfix):0};
+  for(const N of Ns){const seq=degSeqDet(N,ST.lam,ST.om,ST.d,ST.k0);m0.push(meanM(seq,seq.Kc,700));mb.push(meanM(seq,Kfix,700));
+    if(m0.length%3===0||m0.length===Ns.length){drawFSS();drawMCF();await tick();if(tok!==TH.ftok)return;}}
+}
+function fssCfg(){
+  const F=TH.fss,P=pred(ST.lam,ST.om),ink=css('--ink'),up=css('--up');if(!F)return null;const n=F.m0.length,Ns=F.Ns.slice(0,n);
+  const labB=F.low?`K̃ = ${F.Kfix.toFixed(4)} fixed`:'ε_b = 0';
+  const series=[{x:Ns,y:F.m0,color:ink,width:1.9},{x:Ns,y:F.mb,color:up,width:1.9}],legend=[{label:'ε = 0, theory',color:ink},{label:labB+', theory',color:up}];
+  if(n===F.Ns.length){const eC=P.nat&&!F.low?-1/(ST.lam-1):P.expC,x1=Ns[n-1];
+    series.push({x:[x1/1e3,x1],y:[F.m0[n-1]*1.35*Math.pow(1e3,-eC),F.m0[n-1]*1.35],color:ink,dash:[5,4],width:1.1});legend.push({label:`slope ${f3(eC)}`,color:ink,dash:[5,4]});
+    if(F.low){series.push({x:[800,x1*1.3],y:[F.mInf,F.mInf],color:up,dash:[5,4],width:1.1});legend.push({label:`bulk ⟨m̃⟩∞ = ${F.mInf.toFixed(3)}`,color:up,dash:[5,4]});}
+    else{const eB=P.nat?-1/(ST.lam-1):P.expB;series.push({x:[x1/1e3,x1],y:[F.mb[n-1]/1.35*Math.pow(1e3,-eB),F.mb[n-1]/1.35],color:up,dash:[5,4],width:1.1});legend.push({label:`slope ${f3(eB)}`,color:up,dash:[5,4]});}}
+  const all=[...F.m0,...F.mb,...(F.low?[F.mInf]:[])].filter(v=>v>0);
+  return {ml:54,xlim:[800,Ns[Ns.length-1]*1.3],ylim:[Math.min(...all)*0.5,Math.max(...all)*2],xlog:true,ylog:true,xlabel:'N',ylabel:'⟨m̃⟩',series,legend,legendPos:'bl'};}
+function drawFSS(){const c=fssCfg();if(c)plot($('fssPlot'),c);
+  $('fssCap').innerHTML=TH.fss&&TH.fss.low?'⟨<var>m̃</var>⟩ at the pseudo-critical point ε = 0 decays with the dashed slope. At a fixed coupling (chosen as <var>K̃<sub>c</sub></var> at <var>N</var> = 10⁵) the system is disordered for small <var>N</var> and then saturates at the bulk value: the magnetization has no threshold.':'Paper Figs. 4(a) and 5(a): ⟨<var>m̃</var>⟩ at the pseudo-critical point ε = 0 and at the bulk critical point ε<sub>b</sub> = 0. Dashed lines have the predicted slopes.';}
+async function computeTheory(){B=bulk(ST.lam,ST.k0);drawSeq();verdict();const a=computeME(),b=computeFSS();await a;await b;}
+
+// ---------- Monte Carlo ----------
+const MC_SIZES=[1000,2000,4000,8000,16384,32768],MC_DEF=[1000,4000,16384];
+$('sizes').innerHTML=MC_SIZES.map(n=>`<label><input type="checkbox" value="${n}" ${MC_DEF.includes(n)?'checked':''}>${n.toLocaleString('en-US')}</label>`).join('');
+let MCR=null,mcRun=false,mcStop=false;
+function mcClear(msg){if(mcRun)mcStop=true;MCR=null;$('pFill').style.width='0';$('pTxt').textContent=msg;drawMC();}
+async function runMC(){
+  if(mcRun){mcStop=true;return;}
+  const sizes=[...$('sizes').querySelectorAll('input:checked')].map(i=>+i.value).sort((a,b)=>a-b);if(!sizes.length){$('pTxt').textContent='Pick at least one system size.';return;}
+  const E=Math.max(10,Math.round(+$('eqS').value||200)),S=Math.max(20,Math.round(+$('msS').value||1000)),eMax=Math.min(1,Math.max(0.005,+$('eMax').value||0.3)),n=Math.max(2,Math.min(20,Math.round(+$('nE').value||7)));
+  const pos=Array.from({length:n},(_,j)=>eMax*Math.pow(1/30,(n-1-j)/(n-1)));const Bk=bulk(ST.lam,ST.k0),low=isLow(),Kfix=low?degSeqDet(1e5,ST.lam,ST.om,ST.d,ST.k0).Kc:Bk.Kc;
+  const run={sizes,E,S,eMax,lam:ST.lam,om:ST.om,d:ST.d,Bk,low,Kfix,data:[],th:[]};MCR=run;
+  let total=0;const plans=sizes.map(N=>{const seq=degSeqDet(N,ST.lam,ST.om,ST.d,ST.k0),pts=[...pos.map(e=>({eps:e})),{eps:0,tag:'c'},...pos.map(e=>({eps:-e}))].map(p=>({...p,K:seq.Kc*(1+p.eps)}));
+    pts.push({eps:Kfix/seq.Kc-1,K:Kfix,tag:'b'});pts.sort((a,b)=>b.K-a.K);total+=N*(E+S)*pts.length;
+    const xs=Array.from({length:61},(_,j)=>-eMax+2*eMax*j/60);run.th.push({xs,ys:xs.map(x=>meanM(seq,seq.Kc*(1+x),600))});return {N,seq,pts};});
+  run.data=plans.map(()=>[]);drawMC();mcRun=true;mcStop=false;$('run').textContent='Stop';
+  let done=0,last=0;const t0=performance.now();
+  outer:for(let a=0;a<plans.length;a++){const {N,seq,pts}=plans[a],mc=makeMC(seq,mulberry32(hashSeed(31,N,Math.round(ST.lam*10),Math.round(ST.om*10))));mc.reset(true);
+    const batch=Math.max(1,Math.floor(7e5/N));
+    for(const p of pts){let sw=0,acc=0,cnt=0;
+      while(sw<E+S){const k=Math.min(batch,E+S-sw);for(let t=0;t<k;t++){const m=mc.sweep(p.K,1);if(sw+t>=E){acc+=Math.abs(m);cnt++;}}sw+=k;done+=k*N;
+        $('pFill').style.width=(100*done/total)+'%';$('pTxt').textContent=`N = ${N.toLocaleString('en-US')}, ε = ${p.eps.toFixed(3)}: ${((performance.now()-t0)/1000).toFixed(1)} s, ${(done/1e6).toFixed(0)} million spin updates`;
+        await tick();if(mcStop||MCR!==run)break outer;}
+      run.data[a].push({...p,m:acc/cnt});if(performance.now()-last>400){drawMC();last=performance.now();}}}
+  mcRun=false;$('run').textContent='Run Monte Carlo';
+  if(MCR===run){if(mcStop)$('pTxt').textContent+='. Stopped early.';else $('pTxt').textContent=`Done: ${(done/1e6).toFixed(0)} million spin updates in ${((performance.now()-t0)/1000).toFixed(1)} s`;fillColSel();drawMC();}
+  mcStop=false;
+}
+function drawMC(){drawMCM();drawMCF();drawMCC();}
+const emptyMsg=()=>mcRun?'Running…':'Run the Monte Carlo to fill this panel.';
+function drawMCM(){
+  const cv=$('mcM');if(!MCR){plot(cv,{xlim:[-0.3,0.3],ylim:[0,1],xlabel:'ε',ylabel:'⟨m̃⟩',message:emptyMsg()});return;}
+  const cols=sizeColors(MCR.sizes.length),series=[],legend=[];
+  MCR.sizes.forEach((N,a)=>{series.push({x:MCR.th[a].xs,y:MCR.th[a].ys,color:cols[a],width:1.3});const d=MCR.data[a];series.push({x:d.map(p=>p.eps),y:d.map(p=>p.m),color:cols[a],width:0,marker:3});legend.push({label:'N = '+N.toLocaleString('en-US'),color:cols[a]});});
+  plot(cv,{xlim:[-MCR.eMax,MCR.eMax],ylim:[0,1.02],xlabel:'ε',ylabel:'⟨m̃⟩',series,legend,legendPos:'tl',vlines:[{x:0,color:css('--muted'),dash:[2,4]}]});}
+function drawMCF(){
+  $('mcFt').innerHTML=isLow()?'⟨<var>m̃</var>⟩ at ε = 0 and at fixed <var>K̃</var>':'⟨<var>m̃</var>⟩ at ε = 0 and ε<sub>b</sub> = 0';
+  const cv=$('mcF'),c=fssCfg();if(!c){plot(cv,{xlim:[1e3,1e8],ylim:[1e-3,1],xlog:true,ylog:true,message:'Computing theory…'});return;}
+  if(MCR&&MCR.lam===ST.lam&&MCR.om===ST.om&&MCR.d===ST.d){const ink=css('--ink'),up=css('--up'),x0=[],y0=[],xb=[],yb=[];
+    MCR.sizes.forEach((N,a)=>{for(const p of MCR.data[a]){if(p.tag==='c'){x0.push(N);y0.push(p.m);}if(p.tag==='b'){xb.push(N);yb.push(p.m);}}});
+    c.series.push({x:x0,y:y0,color:ink,width:0,marker:4},{x:xb,y:yb,color:up,width:0,marker:4,hollow:true});c.legend.push({label:'ε = 0, Monte Carlo',color:ink},{label:(MCR.low?'fixed K̃':'ε_b = 0')+', Monte Carlo',color:up});}
+  else c.message=MCR?'':emptyMsg();
+  plot(cv,c);}
+const COLS={low:'Critical window: εN^(1/ν̄c), 2 < λ ≤ 3',lowK:'Absolute coupling K̃ against the bulk curve',std:'ν̄ = 2, β = 1/2, with ψ(x) (Eq. A3)',crit:'Eq. (51): critical variable εN^(1/ν̄c)',bulk:'Eq. (52): bulk variable εN^(1/ν̄*)',nat:'ω = ω_nat: εN^((λ−3)/(λ−1))'};
+function drawLowK(cv){
+  const cols=sizeColors(MCR.sizes.length),series=[],legend=[];let x0=Infinity,x1=0,y0=Infinity;
+  MCR.sizes.forEach((N,a)=>{const pts=MCR.data[a].slice().sort((p,q)=>p.K-q.K);pts.forEach(p=>{x0=Math.min(x0,p.K);x1=Math.max(x1,p.K);if(p.m>0)y0=Math.min(y0,p.m);});
+    series.push({x:pts.map(p=>p.K),y:pts.map(p=>p.m),color:cols[a],width:1,marker:3});legend.push({label:'N = '+N.toLocaleString('en-US'),color:cols[a]});});
+  const gx=Array.from({length:40},(_,j)=>x0*Math.pow(x1/x0,j/39));series.push({x:gx,y:gx.map(K=>bulkM(MCR.Bk,K)),color:css('--ink'),dash:[6,3],width:2});legend.push({label:'N = ∞ (bulk)',color:css('--ink'),dash:[6,3]});
+  plot(cv,{ml:54,xlim:[x0/1.2,x1*1.2],ylim:[Math.max(1e-3,y0/1.5),1.2],xlog:true,ylog:true,xlabel:'K̃',ylabel:'⟨m̃⟩',series,legend,legendPos:'br'});
+  $('colCap').innerHTML='Each size loses order below its own <var>K̃<sub>c</sub></var>(<var>N</var>), which moves left as <var>N</var> grows; the envelope is the bulk curve, nonzero for every <var>K̃</var> &gt; 0.';}
+function fillColSel(){const src=MCR||{lam:ST.lam,om:ST.om},P=pred(src.lam,src.om),sel=$('colSel');const opts=P.type==='low'?['low','lowK']:P.type==='std'?['std']:['crit','bulk','nat'];
+  const def=P.type==='low'?'low':P.type==='std'?'std':P.nat?'nat':'crit';sel.innerHTML=opts.map(o=>`<option value="${o}" ${o===def?'selected':''}>${COLS[o]}</option>`).join('');}
+function drawMCC(){
+  const cv=$('mcC');if(!MCR||!MCR.data.some(d=>d.length)){plot(cv,{xlim:[0.01,100],ylim:[0.1,10],xlog:true,ylog:true,message:emptyMsg()});$('colCap').textContent='Paper Figs. 4(b) and 5(b)–(d). Filled markers ε > 0, open markers ε < 0.';return;}
+  const l=MCR.lam,w=MCR.om,P=pred(l,w),sel=$('colSel').value||'std';let ye,xe;
+  if(sel==='lowK')return drawLowK(cv);
+  if(sel==='low'){ye=-P.expC;xe=P.invnuc;}else if(sel==='std'){ye=0.25;xe=0.5;}else if(sel==='crit'){ye=P.bt/P.nuc;xe=1/P.nuc;}else if(sel==='bulk'){ye=1/w;xe=(l-3)/w;}else{ye=1/(l-1);xe=(l-3)/(l-1);}
+  const cols=sizeColors(MCR.sizes.length),series=[],legend=[];let x0=Infinity,x1=0,y0=Infinity,y1=0;
+  MCR.sizes.forEach((N,a)=>{const pts=MCR.data[a].filter(p=>Math.abs(p.eps)>1e-9&&p.m>0).sort((p,q)=>p.eps-q.eps),xs=pts.map(p=>Math.abs(p.eps)*Math.pow(N,xe)),ys=pts.map(p=>p.m*Math.pow(N,ye));
+    xs.forEach((v,i)=>{x0=Math.min(x0,v);x1=Math.max(x1,v);y0=Math.min(y0,ys[i]);y1=Math.max(y1,ys[i]);});
+    series.push({x:xs,y:ys,color:cols[a],width:0,marker:3,hollow:i=>pts[i].eps<0});legend.push({label:'N = '+N.toLocaleString('en-US'),color:cols[a]});});
+  const mu=css('--muted');
+  if(sel==='std'&&l>=5){const Bk=MCR.Bk,a=Bk.z1*Bk.z1/Bk.z2,b=Math.pow(Bk.z1/Bk.z2,4)*Bk.z4,gx=Array.from({length:60},(_,j)=>x0/2*Math.pow(x1*2/(x0/2),j/59));
+    series.push({x:gx,y:gx.map(x=>psi(x,a,b)),color:css('--ink'),width:1.5},{x:gx,y:gx.map(x=>psi(-x,a,b)),color:css('--ink'),dash:[5,4],width:1.5});
+    legend.push({label:'ψ(x), ε > 0',color:css('--ink')},{label:'ψ(−x), ε < 0',color:css('--ink'),dash:[5,4]});}
+  else if(sel!=='low'){const sl=sel==='crit'?0.5:P.beta,xa=x1,ya=y1;series.push({x:[xa/100,xa],y:[ya*Math.pow(0.01,sl),ya],color:mu,dash:[5,4],width:1.2});legend.push({label:`slope ${sl.toFixed(2)}`,color:mu,dash:[5,4]});}
+  plot(cv,{ml:54,xlim:[x0/2,x1*2],ylim:[y0/1.6,y1*1.8],xlog:true,ylog:true,xlabel:`|ε| N^${xe.toFixed(3)}`,ylabel:`⟨m̃⟩ N^${ye.toFixed(3)}`,series,legend,legendPos:'tl'});
+  $('colCap').innerHTML=(sel==='low'?'Filled markers ε &gt; 0, open markers ε &lt; 0. '+(P.nat?'At the natural cutoff 1/ν̄<sub>c</sub> = 0, so only ⟨<var>m̃</var>⟩ is rescaled; the data should collapse quickly.':'For a forced cutoff this collapse converges slowly: corrections from the low-degree nodes decay only as <var>k<sub>c</sub></var><sup>λ−3</sup>, so expect a residual drift with <var>N</var>.'):'Paper Figs. 4(b) and 5(b)–(d). Filled markers ε &gt; 0, open markers ε &lt; 0.')+(sel==='low'?'':sel==='std'?' The curves are the analytic scaling function with bulk <var>a</var> and <var>b</var>.':sel==='crit'?' This form should collapse regimes II–IV; the dashed line is the regime II slope 1/2.':sel==='bulk'?' This form targets regimes I–II; at these sizes it is not expected to collapse, as in the paper’s Fig. 5(d).':' A single scaling variable should collapse all the data.');
+}
+$('colSel').addEventListener('change',drawMCC);
+
+// ---------- sample-to-sample ----------
+const S_SIZES=[1e3,8e3,64e3,512e3,4096e3];
+$('sSizes').innerHTML=S_SIZES.map(n=>`<label><input type="checkbox" value="${n}" checked>${fmtN(n)}</label>`).join('');
+let SR=null,sRun=false,sStop=false;
+function sClear(msg){if(sRun)sStop=true;SR=null;$('sFill').style.width='0';$('sTxt').textContent=msg;drawS();}
+async function runS(){
+  if(sRun){sStop=true;return;}let sizes=[...$('sSizes').querySelectorAll('input:checked')].map(i=>+i.value).sort((a,b)=>a-b);if(!sizes.length){$('sTxt').textContent='Pick at least one system size.';return;}
+  const skipped=sizes.filter(N=>kcOf(N,ST.om,ST.d,ST.k0)>3e5);sizes=sizes.filter(N=>kcOf(N,ST.om,ST.d,ST.k0)<=3e5);if(!sizes.length){$('sTxt').textContent='Every selected size has k_c above 300,000, which is too slow to sample here. Pick smaller sizes or a larger ω.';return;}
+  const n=Math.max(20,Math.min(3000,Math.round(+$('nSm').value||300))),run={sizes,n,lam:ST.lam,om:ST.om,d:ST.d,m:sizes.map(()=>[]),z4:sizes.map(()=>[]),kc:sizes.map(()=>[])};SR=run;sRun=true;sStop=false;$('runS').textContent='Stop';
+  let done=0,last=0;const t0=performance.now();
+  outer:for(let s=0;s<n;s++)for(let a=0;a<sizes.length;a++){const N=sizes[a],seq=degSeqRand(N,ST.lam,ST.om,ST.d,ST.k0,mulberry32(hashSeed(55,N,s,Math.round(ST.lam*10),Math.round(ST.om*10),Math.round(ST.d*100))));
+    run.m[a].push(meanM(seq,seq.Kc,600));run.z4[a].push(seq.z4);run.kc[a].push(seq.Kc);done++;
+    if(performance.now()-last>60){$('sFill').style.width=(100*done/(n*sizes.length))+'%';$('sTxt').textContent=`${done} of ${n*sizes.length} degree sequences, ${((performance.now()-t0)/1000).toFixed(1)} s`;if(performance.now()-last>500)drawS();last=performance.now();await tick();if(sStop||SR!==run)break outer;}}
+  sRun=false;$('runS').textContent='Draw samples';if(SR===run){$('sFill').style.width=(100*done/(n*sizes.length))+'%';$('sTxt').textContent=`${done} of ${n*sizes.length} degree sequences, ${((performance.now()-t0)/1000).toFixed(1)} s`+(skipped.length?`. Skipped N = ${skipped.map(fmtN).join(', ')}: k_c too large to sample quickly`:'')+(sStop?'. Stopped early.':'');drawS();}sStop=false;
+}
+const relsd=arr=>{const n=arr.length;if(n<2)return NaN;const mu=arr.reduce((a,b)=>a+b,0)/n;let v=0;for(const x of arr)v+=(x-mu)*(x-mu);return Math.sqrt(v/(n-1))/mu;};
+// Eq. (58): relative spread of z_n ~ N^{e/2}
+function znexp(n,l,w){return n>l-1?(-1+(l-1)/w)/2:n>(l-1)/2?(-1+(2*n-l+1)/w)/2:-0.5;}
+const z4exp=(l,w)=>znexp(4,l,w);
+function drawS(){
+  const h=$('sHist'),sp=$('sSpread');if(!SR||!SR.m[0].length){const msg=sRun?'Drawing…':'Draw samples to fill this panel.';plot(h,{xlim:[0.8,1.2],ylim:[0,1],message:msg});plot(sp,{xlim:[1e3,5e6],ylim:[1e-3,1],xlog:true,ylog:true,message:msg});return;}
+  const cols=sizeColors(SR.sizes.length),sds=SR.m.map(relsd).filter(isFinite),half=Math.max(0.03,4*Math.max(...sds)),lo=1-half,hi=1+half,bins=40,bw=(hi-lo)/bins,series=[],legend=[];let ym=0;
+  SR.sizes.forEach((N,a)=>{const arr=SR.m[a];if(arr.length<2)return;const mu=arr.reduce((p,q)=>p+q,0)/arr.length,c=new Array(bins).fill(0);for(const v of arr){const b=Math.floor((v/mu-lo)/bw);if(b>=0&&b<bins)c[b]++;}
+    const xs=[],ys=[];for(let b=0;b<bins;b++){const y=c[b]/(arr.length*bw);xs.push(lo+b*bw,lo+(b+1)*bw);ys.push(y,y);ym=Math.max(ym,y);}series.push({x:xs,y:ys,color:cols[a],width:1.6});legend.push({label:'N = '+fmtN(N),color:cols[a]});});
+  plot(h,{xlim:[lo,hi],ylim:[0,ym*1.1],xlabel:'x = ⟨m̃⟩c / [⟨m̃⟩c]',ylabel:'P(x)',series,legend,legendPos:'tr'});
+  const rm=SR.m.map(relsd),rz=SR.z4.map(relsd),rk=SR.kc.map(relsd),ok=v=>isFinite(v)&&v>0,e4=znexp(4,SR.lam,SR.om),e2=znexp(2,SR.lam,SR.om),up=css('--up'),ink=css('--ink'),mu=css('--muted'),wl=css('--wall');
+  const ss=[{x:SR.sizes,y:rm,color:ink,width:1.2,marker:4},{x:SR.sizes,y:rz,color:up,width:1.2,marker:4,hollow:true},{x:SR.sizes,y:rk,color:wl,width:1.2,marker:3.5}],all=[...rm,...rz,...rk].filter(ok);
+  const guide=(arr,ex,col)=>{const ia=arr.findIndex(ok);if(ia<0)return;const xa=SR.sizes[ia],ya=arr[ia]*1.5,xb=SR.sizes[SR.sizes.length-1];ss.push({x:[xa,xb],y:[ya,ya*Math.pow(xb/xa,ex)],color:col,dash:[5,4],width:1.1});};
+  guide(rz,e4,up);guide(rk,e2,wl);
+  plot(sp,{ml:54,xlim:[600,8e6],ylim:[Math.min(...all)/4,Math.max(...all)*4],xlog:true,ylog:true,xlabel:'N',ylabel:'relative standard deviation',series:ss,legendPos:'bl',
+    legend:[{label:'⟨m̃⟩c',color:ink},{label:`z₄, predicted slope ${f3(e4)}`,color:up},{label:`K̃c = z₁/z₂, z₂ slope ${f3(e2)}`,color:wl}]});
+  const nat=Math.abs(SR.om-(SR.lam-1))<0.051,d4=Math.abs(e4)<1e-9,d2=Math.abs(e2)<1e-9;
+  let cap=`Dashed lines are the Eq. (58) predictions for <var>z</var><sub>4</sub> and <var>z</var><sub>2</sub>.`;
+  if(d2)cap+=' For λ &lt; 3 at the natural cutoff even <var>z</var><sub>2</sub> is not self-averaging, so the location of the pseudo-critical point itself fluctuates from sample to sample.';
+  else if(d4)cap+=' With the natural cutoff and λ &lt; 5, <var>z</var><sub>4</sub>, and with it the critical amplitude, never self-averages.';
+  else cap+=e4>-0.5?' Both still shrink, <var>z</var><sub>4</sub> more slowly than <var>N</var><sup>−1/2</sup> (weak self-averaging).':' Both shrink as <var>N</var><sup>−1/2</sup> (strong self-averaging).';
+  $('sCap').innerHTML=cap;
+}
+
+// ---------- controls ----------
+function regimeText(){const l=ST.lam,w=ST.om,om=$('om');om.min=(l-1).toFixed(1);om.max=(l+6).toFixed(1);
+  if(+om.value<l-1)om.value=(l-1).toFixed(1);ST.om=+om.value;
+  $('lamOut').textContent=l.toFixed(1);$('omOut').textContent=ST.om.toFixed(1);$('ddOut').textContent=ST.d.toFixed(2);
+  $('regime').textContent=l<2.95?'2 < λ < 3: z₂ diverges, no threshold as N → ∞':l<=3.001?'λ = 3: borderline, K̃c(N) → 0 logarithmically':Math.abs(l-5)<0.05?'λ = 5: borderline, logarithmic corrections':l<5?'3 < λ < 5: cutoff-dependent, two-parameter scaling':'λ > 5: standard scaling, ν̄ = 2';
+  $('omNote').textContent=`ω_nat = λ − 1 = ${(l-1).toFixed(1)}; `+(ST.om-(l-1)<0.051?'natural cutoff':'forced cutoff');
+  const low=l<=3.001,rb=document.querySelector('input[name=axis][value=b]').nextElementSibling;rb.innerHTML=low?'absolute coupling <var>K̃</var>':'ε<sub>b</sub>, relative to <var>K̃<sub>c</sub></var><sup>∞</sup>';}
+let deb=0;
+let wasLow=null;
+function onModel(){regimeText();const low=isLow();if(low!==wasLow){$('eMax').value=low?1.5:0.3;wasLow=low;}clearTimeout(deb);deb=setTimeout(()=>{buildHero();computeTheory();fillColSel();
+  mcClear('Settings changed. Run the Monte Carlo to update.');sClear('Settings changed. Draw samples to update.');},160);}
+$('lam').addEventListener('input',e=>{ST.lam=+e.target.value;onModel();});
+$('om').addEventListener('input',e=>{ST.om=+e.target.value;onModel();});
+$('dd').addEventListener('input',e=>{ST.d=+e.target.value;onModel();});
+document.querySelectorAll('.presets button').forEach(b=>b.addEventListener('click',()=>{const [l,w,d]=b.dataset.p.split(',').map(Number);
+  ST.lam=l;ST.d=d;$('lam').value=l;$('dd').value=d;ST.om=w;regimeText();$('om').value=w;ST.om=w;onModel();}));
+$('eSl').addEventListener('input',()=>{heroTheory();});
+$('nN').addEventListener('input',e=>{$('nOut').textContent=e.target.value;clearTimeout(deb);deb=setTimeout(buildHero,150);});
+$('spd').addEventListener('input',e=>{$('spdOut').textContent=e.target.value;});
+$('sqrtS').addEventListener('change',()=>{HV.layer=null;drawNet();$('legS').innerHTML=$('sqrtS').checked?'√(<var>k<sub>i</sub>k<sub>j</sub></var>)':'<var>k<sub>i</sub>k<sub>j</sub></var>';});
+$('frus').addEventListener('change',()=>{drawNet();$('legF').style.display=$('frus').checked?'':'none';});
+$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';kick();};
+$('reheat').onclick=()=>{HV.mc.reset(false);heroTheory();drawNet();};
+$('thN').addEventListener('input',drawSeq);$('thE').addEventListener('input',()=>drawF());
+document.querySelectorAll('input[name=axis]').forEach(r=>r.addEventListener('change',computeME));$('meLog').addEventListener('change',computeME);
+$('run').onclick=runMC;$('runS').onclick=runS;
+function redrawAll(){drawNet();drawHist();drawTrace();drawSeq();verdict();drawME();drawFSS();drawMC();drawS();}
+let rz=0;window.addEventListener('resize',()=>{cancelAnimationFrame(rz);rz=requestAnimationFrame(redrawAll);});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(HV)HV.layer=null;redrawAll();});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(redrawAll);
+
+// ---------- start ----------
+$('play').textContent=playing?'Pause':'Play';regimeText();wasLow=isLow();buildHero();fillColSel();drawMC();drawS();kick();
+computeTheory().then(()=>new Promise(r=>setTimeout(r,300))).then(runMC).then(runS);
+
+</script>
+</body>
+</html>
