@@ -12,7 +12,7 @@
   function effective(){return saved()||(sys&&sys.matches?'dark':'light')}
   function apply(){root.setAttribute('data-theme',effective());root.style.colorScheme=effective()}
   apply();
-  // Pages listen for OS colour-scheme changes to redraw their canvases; make those
+  // Pages listen for OS color-scheme changes to redraw their canvases; make those
   // listeners (and .matches checks) follow the chosen theme instead of the OS alone.
   if(nativeMM){
     window.matchMedia=function(q){
@@ -71,6 +71,7 @@
 @media print{#theme-toggle{display:none}}
 </style>
 <!-- theme-toggle:end -->
+
 
 
 
@@ -203,7 +204,7 @@ footer{margin:56px 0 40px;padding-top:18px;border-top:1px solid var(--rule);font
 <div class="wrap">
 <header class="mast">
   <p class="cite">Interactive companion to S. H. Lee, M. Ha, H. Jeong, J. D. Noh &amp; H. Park, <a href="https://doi.org/10.1103/PhysRevE.80.051127">Phys. Rev. E 80, 051127 (2009)</a></p>
-  <h1>Critical behaviour of the Ising model on annealed scale-free networks</h1>
+  <h1>Critical behavior of the Ising model on annealed scale-free networks</h1>
   <p class="lede">Here an annealed network is a globally coupled network: every pair of nodes interacts, with a weight <var>K̃k<sub>i</sub>k<sub>j</sub></var>/<var>Nz</var><sub>1</sub> proportional to the product of their nominal degrees. The <var>k<sub>i</sub></var> are weights drawn from a scale-free distribution, not counts of actual links. The energy depends only on <var>M̃</var> = Σ<var>k<sub>i</sub>s<sub>i</sub></var>, which makes finite-size scaling solvable. With a forced cutoff <var>k<sub>c</sub></var> ∼ <var>N</var><sup>1/ω</sup>, the case 3 &lt; λ &lt; 5 needs two scaling variables instead of one, and for 2 &lt; λ &lt; 3 the transition moves to zero coupling.</p>
 </header>
 </div>
@@ -242,7 +243,7 @@ footer{margin:56px 0 40px;padding-top:18px;border-top:1px solid var(--rule);font
 <main class="wrap">
 <section class="hero" aria-label="Live Monte Carlo on an annealed network">
   <div class="netwrap">
-    <canvas id="net" aria-label="Globally coupled network: every pair linked, line opacity proportional to the product of nominal degrees, node colour is the spin"></canvas>
+    <canvas id="net" aria-label="Globally coupled network: every pair linked, line opacity proportional to the product of nominal degrees, node color is the spin"></canvas>
     <div class="netinfo" id="netInfo"></div>
     <div class="legend"><span><i style="background:var(--up)"></i>spin up</span><span><i style="background:var(--down)"></i>spin down</span><span>node area ∝ <var>k<sub>i</sub></var>; line opacity ∝ <span id="legS"><var>k<sub>i</sub>k<sub>j</sub></var></span></span><span id="legF"><b></b>strong coupling between opposite spins</span></div>
   </div>
@@ -573,7 +574,7 @@ function readouts(){const Bk=bulk(ST.lam,ST.k0),m=HV.mc.M/HV.mc.norm,K=heroK();
   $('eOut').textContent=(+$('eSl').value).toFixed(3);$('rM').textContent=f3(m);$('rAvg').textContent=HV.hc?(HV.sum/HV.hc).toFixed(3):'–';
   $('rTh').textContent=HV.th.toFixed(3);$('rK').textContent=K.toFixed(4);$('rKc').textContent=`${HV.seq.Kc.toFixed(4)}, ${Bk.Kc>0?Bk.Kc.toFixed(4):'0'}`;
   $('rEb').textContent=Bk.Kc>0?f3(K/Bk.Kc-1):'none: K̃c∞ = 0';$('rSw').textContent=HV.sweeps.toLocaleString('en-US');}
-// Hubs at the centre of a sunflower spiral
+// Hubs at the center of a sunflower spiral
 function netGeom(w,h){const R=Math.min(w,h-44)/2-14;return {R,cx:w/2,cy:(h-34)/2+10};}
 // Static layer: every pair (i, j) is a line with opacity ∝ k_i k_j, i.e. ∝ its coupling K̃ k_i k_j / N z₁.
 // Pairs are grouped into opacity levels and stroked once per level; pairs fainter than 1/400 of the strongest are left out.
